@@ -43,11 +43,22 @@
         <dialog id="settingsDialog">
             <form method="dialog">
                 <header><div><small>FLIGHT COMPUTER</small><h2>Mission variables</h2></div><button class="icon-button" value="cancel" aria-label="Close settings">×</button></header>
-                <label>Gravity <output id="gravityOutput">0.030</output><input id="gravitySetting" type="range" min="0.015" max="0.055" step="0.005" value="0.030"></label>
-                <label>Starting fuel <output id="fuelOutput">1000</output><input id="fuelSetting" type="range" min="500" max="1800" step="100" value="1000"></label>
-                <label>Thrust power <output id="thrustOutput">0.090</output><input id="thrustSetting" type="range" min="0.060" max="0.130" step="0.005" value="0.090"></label>
-                <label>Enemy fire <output id="enemyOutput">1.0×</output><input id="enemySetting" type="range" min="0.5" max="1.8" step="0.1" value="1"></label>
-                <label>Hits per station <output id="baseHitsOutput">2</output><input id="baseHitsSetting" type="range" min="1" max="8" step="1" value="2"></label>
+                <fieldset class="difficulty-picker">
+                    <legend>Flight mode</legend>
+                    <label><input type="radio" name="difficulty" value="easy" checked><span>EASY</span></label>
+                    <label><input type="radio" name="difficulty" value="medium"><span>MEDIUM</span></label>
+                    <label><input type="radio" name="difficulty" value="hard"><span>HARD</span></label>
+                    <label><input type="radio" name="difficulty" value="expert"><span>EXPERT</span></label>
+                </fieldset>
+                <p id="difficultySummary" class="difficulty-summary"></p>
+                <details class="advanced-settings">
+                    <summary>Advanced tuning</summary>
+                    <label>Gravity <output id="gravityOutput">0.018</output><input id="gravitySetting" type="range" min="0.012" max="0.035" step="0.001" value="0.018"></label>
+                    <label>Starting fuel <output id="fuelOutput">2600</output><input id="fuelSetting" type="range" min="1600" max="4000" step="100" value="2600"></label>
+                    <label>Thrust power <output id="thrustOutput">0.115</output><input id="thrustSetting" type="range" min="0.090" max="0.135" step="0.005" value="0.115"></label>
+                    <label>Enemy fire <output id="enemyOutput">0.45×</output><input id="enemySetting" type="range" min="0.35" max="1.2" step="0.05" value="0.45"></label>
+                    <label>Hits per station <output id="baseHitsOutput">1</output><input id="baseHitsSetting" type="range" min="1" max="4" step="1" value="1"></label>
+                </details>
                 <label class="sector-setting">Start at sector <input id="levelSetting" type="number" min="1" max="30" step="1" value="1" inputmode="numeric"></label>
                 <button class="primary-button" value="default">APPLY SETTINGS</button>
             </form>

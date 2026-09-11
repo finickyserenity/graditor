@@ -130,6 +130,17 @@ dialog label { display: grid; grid-template-columns: 1fr auto; gap: 7px; margin:
 dialog output { color: var(--acid); font: 500 12px Monaco, monospace; }
 dialog input { grid-column: 1 / -1; width: 100%; accent-color: var(--acid); }
 dialog .primary-button { width: 100%; margin-top: 10px; }
+.difficulty-picker { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0; padding: 0; border: 0; }
+.difficulty-picker legend { margin-bottom: 8px; color: #c5cec7; font-size: 15px; }
+.difficulty-picker label { display: block; margin: 0; }
+.difficulty-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.difficulty-picker span { display: grid; place-items: center; min-height: 36px; border: 1px solid var(--line); color: var(--muted); font: 600 10px Monaco, monospace; cursor: pointer; }
+.difficulty-picker label + label span { border-left: 0; }
+.difficulty-picker input:checked + span { color: #11160f; border-color: var(--acid); background: var(--acid); }
+.difficulty-summary { min-height: 34px; margin: 10px 0 14px; color: var(--muted); font: 500 11px/1.45 Monaco, monospace; }
+.advanced-settings { margin: 0 0 12px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.advanced-settings summary { padding: 9px 0; color: var(--muted); font: 600 11px Monaco, monospace; cursor: pointer; }
+.advanced-settings label { margin: 12px 0; }
 .sector-setting { grid-template-columns: 1fr 80px; align-items: center; }
 .sector-setting input { grid-column: 2; padding: 7px 9px; border: 1px solid var(--line); border-radius: 2px; color: var(--acid); background: #090d0c; font: 600 13px Monaco, monospace; text-align: right; }
 .callsign-label input { margin-top: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); background: #090d0c; font: 500 13px Monaco, monospace; text-transform: uppercase; }
@@ -178,6 +189,11 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
     dialog h2 { font-size: 19px; }
     dialog label { gap: 2px; margin: 3px 0; font-size: 13px; }
     dialog .primary-button { min-height: 36px; margin-top: 5px; }
+    .difficulty-picker legend { margin-bottom: 4px; }
+    .difficulty-picker span { min-height: 30px; font-size: 9px; }
+    .difficulty-summary { min-height: 0; margin: 5px 0; font-size: 9px; }
+    .advanced-settings { margin-bottom: 4px; }
+    .advanced-settings summary { padding: 5px 0; }
     .leaderboard-list { min-height: 120px; margin: 8px 0; }
     .leaderboard-list li { padding-block: 5px; }
     .key-guide { display: none; }

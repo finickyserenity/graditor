@@ -15,7 +15,13 @@
     };
 
     const controls = { left: false, right: false, thrust: false, fire: false };
-    const config = { gravity: 0.03, maxFuel: 1000, thrust: 0.09, enemyRate: 1, baseHits: 2 };
+    const difficultyPresets = {
+        easy: { gravity: .018, maxFuel: 2600, fuelPerLevel: 180, thrust: .115, enemyRate: .45, baseHits: 1, turretBase: 2, turretGrowth: .7, damageMultiplier: .65, terrainScale: .55, passageBonus: 120 },
+        medium: { gravity: .022, maxFuel: 2300, fuelPerLevel: 160, thrust: .11, enemyRate: .65, baseHits: 1, turretBase: 3, turretGrowth: .9, damageMultiplier: .8, terrainScale: .7, passageBonus: 80 },
+        hard: { gravity: .026, maxFuel: 2100, fuelPerLevel: 140, thrust: .105, enemyRate: .85, baseHits: 2, turretBase: 4, turretGrowth: 1.1, damageMultiplier: 1, terrainScale: .85, passageBonus: 40 },
+        expert: { gravity: .03, maxFuel: 1900, fuelPerLevel: 120, thrust: .1, enemyRate: 1.05, baseHits: 3, turretBase: 5, turretGrowth: 1.3, damageMultiplier: 1.1, terrainScale: 1, passageBonus: 0 }
+    };
+    const config = { mode: 'easy', ...difficultyPresets.easy };
     const world = { width: 8200, height: 2300, floor: [], ceiling: [], pads: [], stars: [], turrets: [], particles: [], bullets: [], enemyBullets: [] };
     const camera = { x: 0, y: 0 };
     const ship = { x: 180, y: 0, vx: 0, vy: 0, angle: 0, radius: 13, fuel: 1000, hull: 100, cooldown: 0, invulnerable: 0, damageEvents: 0, tipped: false };
@@ -194,7 +200,7 @@
     function buildPassages() {
         if (level < 5) return;
         const passageCount = Math.min(5, Math.floor((level - 3) / 2));
-        const aperture = Math.max(240, 500 - (level - 5) * 20);
+        const aperture = Math.max(240 + config.passageBonus, 500 + config.passageBonus - (level - 5) * 20);
         const passageWidth = 400;
         for (let passage = 0; passage < passageCount; passage++) {
             const centerX = 1500 + passage * ((world.width - 3000) / Math.max(1, passageCount - 1));
@@ -227,7 +233,7 @@
         const extractionY = 1510;
         let floorY = launchY;
         for (let x = 0; x <= world.width; x += 80) {
-            floorY += (rng() - .5) * (95 + level * 8);
+            floorY += (rng() - .5) * (70 + level * 5) * config.terrainScale;
             floorY = Math.max(1120, Math.min(2030, floorY));
             if (x < 400) floorY = launchY;
             if (x > world.width - 520) floorY = extractionY;
@@ -240,7 +246,7 @@
 
         world.pads.push({ x: 100, width: 180, y: launchY, extraction: false });
         world.pads.push({ x: world.width - 440, width: 260, y: extractionY, extraction: true });
-        const turretCount = 5 + level * 2;
+        const turretCount = config.turretBase + Math.ceil(level * config.turretGrowth);
         for (let index = 0; index < turretCount; index++) {
             const x = 700 + index * ((world.width - 1450) / Math.max(1, turretCount - 1)) + (rng() - .5) * 180;
             world.turrets.push({ x, y: terrainY(world.floor, x) - 15, health: config.baseHits, cooldown: rng() * 100, angle: -Math.PI / 2, mount: 'floor' });
@@ -266,7 +272,7 @@
         ship.vx = 0;
         ship.vy = 0;
         ship.angle = 0;
-        ship.fuel = config.maxFuel;
+        ship.fuel = getLevelFuel();
         ship.hull = 100;
         ship.cooldown = 0;
         ship.invulnerable = 0;
@@ -361,7 +367,7 @@
         world.enemyBullets.forEach(bullet => {
             bullet.x += bullet.vx * dt; bullet.y += bullet.vy * dt; bullet.life -= dt;
             if (projectileHitsTerrain(bullet)) { bullet.life = 0; emit(bullet.x, bullet.y, '#ff5f4d', 3, .7); return; }
-            if (Math.hypot(bullet.x - ship.x, bullet.y - ship.y) < ship.radius + 4) { bullet.life = 0; damage(18); }
+            if (Math.hypot(bullet.x - ship.x, bullet.y - ship.y) < ship.radius + 4) { bullet.life = 0; damage(18 * config.damageMultiplier); }
         });
 
         world.turrets.forEach(turret => {
@@ -448,7 +454,7 @@
         playTone(220, 880, .8, .2, 'sine');
         score += Math.round(ship.fuel * 2 + ship.hull * 25);
         saveLeaderboardEntry();
-        showMessage('SECTOR SECURED', `Level ${level} complete`, `Fuel and hull bonuses logged. The next sector has stronger emplacements and tighter terrain.`, 'ENTER NEXT SECTOR');
+        showMessage('SECTOR SECURED', `Level ${level} complete`, `Next sector fuel allocation: ${getLevelFuel(level + 1)}. Expect stronger emplacements and tighter terrain.`, 'ENTER NEXT SECTOR');
     }
 
     function endRun(eyebrow, title, copy, button) {
@@ -466,7 +472,7 @@
 
     function updateHud() {
         const live = world.turrets.filter(turret => turret.health > 0).length;
-        const fuelPercent = ship.fuel / config.maxFuel * 100;
+        const fuelPercent = ship.fuel / getLevelFuel() * 100;
         ui.score.textContent = String(score).padStart(6, '0');
         ui.hostiles.textContent = live;
         ui.fuel.textContent = Math.ceil(fuelPercent);
@@ -475,6 +481,29 @@
         ui.hullMeter.value = ship.hull;
         ui.speed.textContent = `${Math.hypot(ship.vx, ship.vy).toFixed(1)} M/S`;
         ui.altitude.textContent = `ALT ${Math.max(0, Math.round(terrainY(world.floor, ship.x) - ship.y))}`;
+    }
+
+    /** Returns the fuel allocation for a sector under the selected mode. */
+    function getLevelFuel(targetLevel = level) {
+        return config.maxFuel + Math.max(0, targetLevel - 1) * config.fuelPerLevel;
+    }
+
+    /** Updates the difficulty summary for the currently selected test sector. */
+    function updateDifficultySummary() {
+        const selectedLevel = Number.parseInt(document.getElementById('levelSetting').value, 10) || 1;
+        const allocation = getLevelFuel(Math.max(1, Math.min(30, selectedLevel)));
+        document.getElementById('difficultySummary').textContent = `${config.maxFuel} base +${config.fuelPerLevel}/sector · ${allocation} fuel at sector ${selectedLevel} · ${config.turretBase + 1} starting defenses`;
+    }
+
+    /** Applies a balanced difficulty preset and synchronizes its advanced controls. */
+    function applyDifficultyPreset(mode) {
+        config.mode = mode;
+        Object.assign(config, difficultyPresets[mode]);
+        const controlsByKey = { gravity: 'gravitySetting', maxFuel: 'fuelSetting', thrust: 'thrustSetting', enemyRate: 'enemySetting', baseHits: 'baseHitsSetting' };
+        const outputsByKey = { gravity: ['gravityOutput', value => value.toFixed(3)], maxFuel: ['fuelOutput', Math.round], thrust: ['thrustOutput', value => value.toFixed(3)], enemyRate: ['enemyOutput', value => `${value.toFixed(2)}×`], baseHits: ['baseHitsOutput', Math.round] };
+        Object.entries(controlsByKey).forEach(([key, id]) => { document.getElementById(id).value = config[key]; });
+        Object.entries(outputsByKey).forEach(([key, [id, format]]) => { document.getElementById(id).value = format(config[key]); });
+        updateDifficultySummary();
     }
 
     /**
@@ -641,9 +670,13 @@
     ui.callsign.value = localStorage.getItem(callsignKey) || 'PILOT';
     ui.callsign.addEventListener('input', () => localStorage.setItem(callsignKey, ui.callsign.value.toUpperCase().slice(0, 12)));
     document.getElementById('clearLeaderboardButton').addEventListener('click', () => { localStorage.removeItem(leaderboardKey); renderLeaderboard(); });
-    [['gravity', 'gravitySetting', 'gravityOutput', value => Number(value).toFixed(3)], ['maxFuel', 'fuelSetting', 'fuelOutput', Math.round], ['thrust', 'thrustSetting', 'thrustOutput', value => Number(value).toFixed(3)], ['enemyRate', 'enemySetting', 'enemyOutput', value => `${Number(value).toFixed(1)}×`], ['baseHits', 'baseHitsSetting', 'baseHitsOutput', Math.round]].forEach(([key, inputId, outputId, format]) => {
+    document.querySelectorAll('input[name="difficulty"]').forEach(input => {
+        input.addEventListener('change', () => applyDifficultyPreset(input.value));
+    });
+    document.getElementById('levelSetting').addEventListener('input', updateDifficultySummary);
+    [['gravity', 'gravitySetting', 'gravityOutput', value => Number(value).toFixed(3)], ['maxFuel', 'fuelSetting', 'fuelOutput', Math.round], ['thrust', 'thrustSetting', 'thrustOutput', value => Number(value).toFixed(3)], ['enemyRate', 'enemySetting', 'enemyOutput', value => `${Number(value).toFixed(2)}×`], ['baseHits', 'baseHitsSetting', 'baseHitsOutput', Math.round]].forEach(([key, inputId, outputId, format]) => {
         const input = document.getElementById(inputId), output = document.getElementById(outputId);
-        input.addEventListener('input', () => { config[key] = Number(input.value); output.value = format(input.value); });
+        input.addEventListener('input', () => { config[key] = Number(input.value); output.value = format(input.value); updateDifficultySummary(); });
     });
     ui.settings.addEventListener('close', () => {
         if (ui.settings.returnValue !== 'default') return;
@@ -659,6 +692,7 @@
     updateAudioButton();
     addEventListener('resize', resize);
     resize();
+    applyDifficultyPreset('easy');
     buildLevel();
     requestAnimationFrame(loop);
 })();
