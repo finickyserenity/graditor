@@ -10,19 +10,23 @@
         hullMeter: document.getElementById('hullMeter'), speed: document.getElementById('speedValue'),
         altitude: document.getElementById('altitudeValue'), message: document.getElementById('messagePanel'),
         start: document.getElementById('startButton'), startLabel: document.getElementById('startButtonLabel'),
-        settings: document.getElementById('settingsDialog')
+        settings: document.getElementById('settingsDialog'), leaderboard: document.getElementById('leaderboardDialog'),
+        leaderboardList: document.getElementById('leaderboardList'), callsign: document.getElementById('callsignInput')
     };
 
     const controls = { left: false, right: false, thrust: false, fire: false };
     const config = { gravity: 0.03, maxFuel: 1000, thrust: 0.09, enemyRate: 1, baseHits: 2 };
     const world = { width: 8200, height: 2300, floor: [], ceiling: [], pads: [], stars: [], turrets: [], particles: [], bullets: [], enemyBullets: [] };
     const camera = { x: 0, y: 0 };
-    const ship = { x: 180, y: 0, vx: 0, vy: 0, angle: 0, radius: 13, fuel: 1000, hull: 100, cooldown: 0, invulnerable: 0 };
+    const ship = { x: 180, y: 0, vx: 0, vy: 0, angle: 0, radius: 13, fuel: 1000, hull: 100, cooldown: 0, invulnerable: 0, damageEvents: 0, tipped: false };
     let level = 1;
     let score = 0;
     let state = 'briefing';
     let lastTime = 0;
     let shake = 0;
+    let runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const leaderboardKey = 'graditorLeaderboard';
+    const callsignKey = 'graditorCallsign';
 
     function random(seed) {
         let value = seed % 2147483647;
@@ -82,6 +86,8 @@
         ship.hull = 100;
         ship.cooldown = 0;
         ship.invulnerable = 0;
+        ship.damageEvents = 0;
+        ship.tipped = false;
         camera.x = 0;
         camera.y = Math.max(0, ship.y - canvas.height * .65);
     }
@@ -125,10 +131,14 @@
     function damage(amount) {
         if (ship.invulnerable > 0 || state !== 'playing') return;
         ship.hull = Math.max(0, ship.hull - amount);
+        ship.damageEvents++;
         ship.invulnerable = 36;
         shake = 10;
         emit(ship.x, ship.y, '#ff5f4d', 16, 3);
-        if (ship.hull <= 0) endRun('SHIP LOST', 'Hull integrity lost.', 'The ridge claimed another pilot. Your mission can be restarted from this sector.', 'RETRY SECTOR');
+        if (ship.hull <= 0) {
+            saveLeaderboardEntry();
+            endRun('SHIP LOST', 'Hull integrity lost.', 'The ridge claimed another pilot. Your mission can be restarted from this sector.', 'RETRY SECTOR');
+        }
     }
 
     function update(dt) {
@@ -193,21 +203,26 @@
         const ceiling = terrainY(world.ceiling, ship.x);
         const hitFloor = ship.y + ship.radius >= floor;
         const hitCeiling = ship.y - ship.radius <= ceiling;
+        if (pad && ship.y + ship.radius < floor - 30) ship.tipped = false;
         if (hitFloor) {
             if (pad) {
                 const impactSpeed = Math.hypot(ship.vx, ship.vy);
                 const verticalSpeed = Math.abs(ship.vy);
                 const lateralSpeed = Math.abs(ship.vx);
-                const tilt = Math.abs(Math.atan2(Math.sin(ship.angle), Math.cos(ship.angle)));
-                const safeLanding = verticalSpeed <= 2.2 && lateralSpeed <= 2 && tilt <= .5;
+                const safeLanding = verticalSpeed <= 2.2 && lateralSpeed <= 2;
                 ship.y = floor - ship.radius;
-                if (safeLanding) {
-                    ship.vx *= .72; ship.vy = 0; ship.angle *= .72;
+                if (ship.tipped) {
+                    ship.vx = 0; ship.vy = 0;
+                } else if (safeLanding) {
+                    ship.vx = 0; ship.vy = 0; ship.angle = 0;
                     if (pad.extraction && world.turrets.every(turret => turret.health <= 0)) completeLevel();
                 } else {
                     ship.vx *= .55; ship.vy = -verticalSpeed * .35;
-                    const fatalImpact = verticalSpeed >= 5.5 || impactSpeed >= 7 || tilt >= 1.2;
-                    damage(fatalImpact ? 100 : Math.max(12, (impactSpeed - 1.5) * 16 + tilt * 18));
+                    const tipDirection = Math.sign(ship.angle || ship.vx || 1);
+                    ship.angle = tipDirection * Math.min(Math.PI * .48, .55 + impactSpeed * .12);
+                    ship.tipped = true;
+                    const fatalImpact = verticalSpeed >= 5.5 || impactSpeed >= 7;
+                    damage(fatalImpact ? 100 : Math.max(12, (impactSpeed - 1.5) * 16));
                 }
             } else {
                 ship.y = floor - ship.radius;
@@ -237,6 +252,7 @@
     function completeLevel() {
         state = 'complete';
         score += Math.round(ship.fuel * 2 + ship.hull * 25);
+        saveLeaderboardEntry();
         showMessage('SECTOR SECURED', `Level ${level} complete`, `Fuel and hull bonuses logged. The next sector has stronger emplacements and tighter terrain.`, 'ENTER NEXT SECTOR');
     }
 
@@ -264,6 +280,55 @@
         ui.hullMeter.value = ship.hull;
         ui.speed.textContent = `${Math.hypot(ship.vx, ship.vy).toFixed(1)} M/S`;
         ui.altitude.textContent = `ALT ${Math.max(0, Math.round(terrainY(world.floor, ship.x) - ship.y))}`;
+    }
+
+    /**
+     * Loads locally stored flight records, discarding malformed values.
+     * @returns {Array<{id: string, callsign: string, score: number, level: number}>} Stored records.
+     */
+    function loadLeaderboard() {
+        try {
+            const entries = JSON.parse(localStorage.getItem(leaderboardKey) || '[]');
+            return Array.isArray(entries) ? entries : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    /** Saves or updates this run among the ten highest local scores. */
+    function saveLeaderboardEntry() {
+        const callsign = (ui.callsign.value.trim() || 'PILOT').toUpperCase().slice(0, 12);
+        const entries = loadLeaderboard().filter(entry => entry.id !== runId);
+        entries.push({ id: runId, callsign, score: Math.round(score), level, savedAt: Date.now() });
+        entries.sort((first, second) => second.score - first.score || second.level - first.level);
+        localStorage.setItem(leaderboardKey, JSON.stringify(entries.slice(0, 10)));
+        renderLeaderboard();
+    }
+
+    /** Renders the current local flight records into the leaderboard dialog. */
+    function renderLeaderboard() {
+        const entries = loadLeaderboard();
+        ui.leaderboardList.replaceChildren();
+        if (!entries.length) {
+            const empty = document.createElement('li');
+            empty.className = 'leaderboard-empty';
+            empty.textContent = 'NO RECORDED FLIGHTS';
+            ui.leaderboardList.append(empty);
+            return;
+        }
+        entries.forEach(entry => {
+            const item = document.createElement('li');
+            const callsign = document.createElement('span');
+            const entryScore = document.createElement('span');
+            const entryLevel = document.createElement('span');
+            callsign.textContent = entry.callsign;
+            entryScore.className = 'leader-score';
+            entryScore.textContent = String(entry.score).padStart(6, '0');
+            entryLevel.className = 'leader-level';
+            entryLevel.textContent = `SECTOR ${entry.level}`;
+            item.append(callsign, entryScore, entryLevel);
+            ui.leaderboardList.append(item);
+        });
     }
 
     function drawTerrain(points, fill, stroke, invert = false) {
@@ -332,6 +397,19 @@
             context.beginPath(); context.moveTo(0, -17); context.lineTo(12, 12); context.lineTo(4, 8); context.lineTo(0, 13); context.lineTo(-4, 8); context.lineTo(-12, 12); context.closePath();
             context.fillStyle = '#e7eee4'; context.fill(); context.strokeStyle = '#c7f36a'; context.lineWidth = 2; context.stroke();
             context.fillStyle = '#101612'; context.fillRect(-3, -6, 6, 9);
+            const scarPatterns = [[-8, -7, -2, -1, -7, 5], [7, -5, 1, 1, 7, 7], [-4, -12, 2, -5, -1, 2], [4, 4, -2, 8, 3, 12], [-10, 3, -4, 0, -8, -5]];
+            context.strokeStyle = '#6f2d24'; context.lineWidth = 1.5;
+            scarPatterns.slice(0, Math.min(ship.damageEvents, scarPatterns.length)).forEach(scar => {
+                context.beginPath(); context.moveTo(scar[0], scar[1]); context.lineTo(scar[2], scar[3]); context.lineTo(scar[4], scar[5]); context.stroke();
+            });
+            if (ship.hull < 65) {
+                context.fillStyle = '#151b17'; context.beginPath(); context.moveTo(8, 3); context.lineTo(12, 12); context.lineTo(4, 8); context.closePath(); context.fill();
+                context.strokeStyle = '#ffb547'; context.beginPath(); context.moveTo(7, 1); context.lineTo(11, 7); context.stroke();
+            }
+            if (ship.hull < 35) {
+                context.fillStyle = '#090d0c'; context.beginPath(); context.arc(-4, 1, 4, 0, Math.PI * 2); context.fill();
+                if (Math.random() > .55) emit(ship.x - 7, ship.y + 4, '#626b63', 1, .35);
+            }
             context.restore();
         }
         context.restore();
@@ -361,6 +439,10 @@
         ui.message.classList.remove('visible');
     });
     document.getElementById('settingsButton').addEventListener('click', () => ui.settings.showModal());
+    document.getElementById('leaderboardButton').addEventListener('click', () => { renderLeaderboard(); ui.leaderboard.showModal(); });
+    ui.callsign.value = localStorage.getItem(callsignKey) || 'PILOT';
+    ui.callsign.addEventListener('input', () => localStorage.setItem(callsignKey, ui.callsign.value.toUpperCase().slice(0, 12)));
+    document.getElementById('clearLeaderboardButton').addEventListener('click', () => { localStorage.removeItem(leaderboardKey); renderLeaderboard(); });
     [['gravity', 'gravitySetting', 'gravityOutput', value => Number(value).toFixed(3)], ['maxFuel', 'fuelSetting', 'fuelOutput', Math.round], ['thrust', 'thrustSetting', 'thrustOutput', value => Number(value).toFixed(3)], ['enemyRate', 'enemySetting', 'enemyOutput', value => `${Number(value).toFixed(1)}×`], ['baseHits', 'baseHitsSetting', 'baseHitsOutput', Math.round]].forEach(([key, inputId, outputId, format]) => {
         const input = document.getElementById(inputId), output = document.getElementById(outputId);
         input.addEventListener('input', () => { config[key] = Number(input.value); output.value = format(input.value); });

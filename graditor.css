@@ -129,6 +129,16 @@ dialog label { display: grid; grid-template-columns: 1fr auto; gap: 7px; margin:
 dialog output { color: var(--acid); font: 500 12px Monaco, monospace; }
 dialog input { grid-column: 1 / -1; width: 100%; accent-color: var(--acid); }
 dialog .primary-button { width: 100%; margin-top: 10px; }
+.callsign-label input { margin-top: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); background: #090d0c; font: 500 13px Monaco, monospace; text-transform: uppercase; }
+.leaderboard-list { min-height: 164px; margin: 18px 0; padding: 0; list-style: none; counter-reset: rank; }
+.leaderboard-list li { display: grid; grid-template-columns: 24px 1fr 52px 90px; gap: 8px; padding: 7px 3px; border-bottom: 1px solid var(--line); font: 500 12px Monaco, monospace; }
+.leaderboard-list li::before { color: var(--muted); content: counter(rank, decimal-leading-zero); counter-increment: rank; }
+.leaderboard-list .leader-score { color: var(--acid); text-align: right; }
+.leaderboard-list .leader-level { color: var(--muted); text-align: right; }
+.leaderboard-empty { display: block !important; padding: 40px 0 !important; color: var(--muted); text-align: center; }
+.leaderboard-empty::before { content: none !important; }
+.secondary-button { width: 100%; min-height: 38px; border: 1px solid var(--line); border-radius: 2px; color: var(--muted); background: transparent; font: 600 11px Monaco, monospace; }
+.secondary-button:hover { color: var(--danger); border-color: var(--danger); }
 
 .touch-controls { display: none; }
 
@@ -165,6 +175,8 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
     dialog h2 { font-size: 19px; }
     dialog label { gap: 2px; margin: 7px 0; font-size: 13px; }
     dialog .primary-button { min-height: 36px; margin-top: 5px; }
+    .leaderboard-list { min-height: 120px; margin: 8px 0; }
+    .leaderboard-list li { padding-block: 5px; }
     .key-guide { display: none; }
     .status-panel { display: none; }
 }

@@ -21,6 +21,7 @@
                 <div><span>SCORE</span><strong id="scoreValue">000000</strong></div>
                 <div><span>HOSTILES</span><strong id="hostileValue">0</strong></div>
             </div>
+            <button id="leaderboardButton" class="icon-button" type="button" aria-label="Open leaderboard" title="Leaderboard">♛</button>
             <button id="settingsButton" class="icon-button" type="button" aria-label="Open flight settings" title="Flight settings">⚙</button>
         </header>
 
@@ -47,6 +48,15 @@
                 <label>Enemy fire <output id="enemyOutput">1.0×</output><input id="enemySetting" type="range" min="0.5" max="1.8" step="0.1" value="1"></label>
                 <label>Hits per station <output id="baseHitsOutput">2</output><input id="baseHitsSetting" type="range" min="1" max="8" step="1" value="2"></label>
                 <button class="primary-button" value="default">APPLY SETTINGS</button>
+            </form>
+        </dialog>
+
+        <dialog id="leaderboardDialog" class="leaderboard-dialog">
+            <form method="dialog">
+                <header><div><small>LOCAL FLIGHT RECORDS</small><h2>Leaderboard</h2></div><button class="icon-button" value="cancel" aria-label="Close leaderboard">×</button></header>
+                <label class="callsign-label">Pilot callsign <input id="callsignInput" type="text" maxlength="12" autocomplete="nickname" value="PILOT"></label>
+                <ol id="leaderboardList" class="leaderboard-list"></ol>
+                <button id="clearLeaderboardButton" class="secondary-button" type="button">CLEAR RECORDS</button>
             </form>
         </dialog>
 
