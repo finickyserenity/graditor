@@ -129,6 +129,8 @@ dialog label { display: grid; grid-template-columns: 1fr auto; gap: 7px; margin:
 dialog output { color: var(--acid); font: 500 12px Monaco, monospace; }
 dialog input { grid-column: 1 / -1; width: 100%; accent-color: var(--acid); }
 dialog .primary-button { width: 100%; margin-top: 10px; }
+.sector-setting { grid-template-columns: 1fr 80px; align-items: center; }
+.sector-setting input { grid-column: 2; padding: 7px 9px; border: 1px solid var(--line); border-radius: 2px; color: var(--acid); background: #090d0c; font: 600 13px Monaco, monospace; text-align: right; }
 .callsign-label input { margin-top: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); background: #090d0c; font: 500 13px Monaco, monospace; text-transform: uppercase; }
 .leaderboard-list { min-height: 164px; margin: 18px 0; padding: 0; list-style: none; counter-reset: rank; }
 .leaderboard-list li { display: grid; grid-template-columns: 24px 1fr 52px 90px; gap: 8px; padding: 7px 3px; border-bottom: 1px solid var(--line); font: 500 12px Monaco, monospace; }
@@ -170,10 +172,10 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
     .message-panel > p:not(.eyebrow) { margin-block: 8px; max-width: 470px; font-size: 14px; }
     .message-panel .eyebrow { margin-bottom: 7px; }
     .message-panel .primary-button { min-height: 38px; }
-    dialog form { padding: 12px 16px; }
-    dialog header { margin-bottom: 8px; }
+    dialog form { padding: 8px 16px; }
+    dialog header { margin-bottom: 4px; }
     dialog h2 { font-size: 19px; }
-    dialog label { gap: 2px; margin: 7px 0; font-size: 13px; }
+    dialog label { gap: 2px; margin: 3px 0; font-size: 13px; }
     dialog .primary-button { min-height: 36px; margin-top: 5px; }
     .leaderboard-list { min-height: 120px; margin: 8px 0; }
     .leaderboard-list li { padding-block: 5px; }

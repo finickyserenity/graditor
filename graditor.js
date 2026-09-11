@@ -39,6 +39,28 @@
         return points[index] + (points[index + 1] - points[index]) * fraction;
     }
 
+    /** Shapes the terrain into a series of increasingly narrow flight passages. */
+    function buildPassages() {
+        if (level < 5) return;
+        const passageCount = Math.min(5, Math.floor((level - 3) / 2));
+        const aperture = Math.max(240, 500 - (level - 5) * 20);
+        const passageWidth = 400;
+        for (let passage = 0; passage < passageCount; passage++) {
+            const centerX = 1500 + passage * ((world.width - 3000) / Math.max(1, passageCount - 1));
+            const centerY = 1250 + Math.sin((passage + level) * 1.7) * 180;
+            for (let index = 0; index < world.floor.length; index++) {
+                const x = index * 80;
+                const distance = Math.abs(x - centerX);
+                if (distance > passageWidth) continue;
+                const strength = Math.pow(1 - distance / passageWidth, .55);
+                const targetFloor = centerY + aperture / 2;
+                const targetCeiling = centerY - aperture / 2;
+                world.floor[index] += (targetFloor - world.floor[index]) * strength;
+                world.ceiling[index] += (targetCeiling - world.ceiling[index]) * strength;
+            }
+        }
+    }
+
     function buildLevel() {
         const rng = random(1103 + level * 991);
         world.floor = [];
@@ -63,12 +85,23 @@
             world.ceiling.push(cavern ? 470 + Math.sin(x * .008) * 150 + rng() * 120 : -300);
         }
 
+        buildPassages();
+
         world.pads.push({ x: 100, width: 180, y: launchY, extraction: false });
         world.pads.push({ x: world.width - 440, width: 260, y: extractionY, extraction: true });
         const turretCount = 5 + level * 2;
         for (let index = 0; index < turretCount; index++) {
             const x = 700 + index * ((world.width - 1450) / Math.max(1, turretCount - 1)) + (rng() - .5) * 180;
-            world.turrets.push({ x, y: terrainY(world.floor, x) - 15, health: config.baseHits, cooldown: rng() * 100, angle: -Math.PI / 2 });
+            world.turrets.push({ x, y: terrainY(world.floor, x) - 15, health: config.baseHits, cooldown: rng() * 100, angle: -Math.PI / 2, mount: 'floor' });
+        }
+        if (level >= 3) {
+            const ceilingTurretCount = Math.min(5, 1 + Math.floor((level - 3) / 2));
+            for (let index = 0; index < ceilingTurretCount; index++) {
+                const sectionStart = index % 2 ? world.width * .59 : world.width * .2;
+                const sectionWidth = index % 2 ? world.width * .18 : world.width * .23;
+                const x = sectionStart + sectionWidth * ((Math.floor(index / 2) + 1) / (Math.ceil(ceilingTurretCount / 2) + 1));
+                world.turrets.push({ x, y: terrainY(world.ceiling, x) + 15, health: config.baseHits, cooldown: rng() * 100, angle: Math.PI / 2, mount: 'ceiling' });
+            }
         }
 
         resetShip();
@@ -183,7 +216,7 @@
             turret.cooldown -= dt * config.enemyRate;
             if (distance < 720 && turret.cooldown <= 0) {
                 const speed = 3.2 + level * .25;
-                world.enemyBullets.push({ x: turret.x, y: turret.y - 9, vx: Math.cos(turret.angle) * speed, vy: Math.sin(turret.angle) * speed, life: 220 });
+                world.enemyBullets.push({ x: turret.x + Math.cos(turret.angle) * 20, y: turret.y + Math.sin(turret.angle) * 20, vx: Math.cos(turret.angle) * speed, vy: Math.sin(turret.angle) * speed, life: 220 });
                 turret.cooldown = Math.max(55, 130 - level * 9) + Math.random() * 60;
             }
             world.bullets.forEach(bullet => {
@@ -381,8 +414,9 @@
             const x = turret.x - camera.x, y = turret.y - camera.y;
             context.save(); context.translate(x, y);
             context.fillStyle = '#b7c1b9'; context.fillRect(-15, -7, 30, 14);
-            context.strokeStyle = '#ff5f4d'; context.lineWidth = 5; context.beginPath(); context.moveTo(0, -6); context.lineTo(Math.cos(turret.angle) * 20, -6 + Math.sin(turret.angle) * 20); context.stroke();
-            context.fillStyle = '#ff5f4d'; context.fillRect(-turret.health * 4, -19, turret.health * 8, 2);
+            context.fillRect(-8, turret.mount === 'ceiling' ? -15 : 7, 16, 8);
+            context.strokeStyle = '#ff5f4d'; context.lineWidth = 5; context.beginPath(); context.moveTo(0, 0); context.lineTo(Math.cos(turret.angle) * 20, Math.sin(turret.angle) * 20); context.stroke();
+            context.fillStyle = '#ff5f4d'; context.fillRect(-turret.health * 4, turret.mount === 'ceiling' ? 17 : -19, turret.health * 8, 2);
             context.restore();
         });
 
@@ -447,7 +481,17 @@
         const input = document.getElementById(inputId), output = document.getElementById(outputId);
         input.addEventListener('input', () => { config[key] = Number(input.value); output.value = format(input.value); });
     });
-    ui.settings.addEventListener('close', () => { ship.fuel = Math.min(ship.fuel, config.maxFuel); updateHud(); });
+    ui.settings.addEventListener('close', () => {
+        if (ui.settings.returnValue !== 'default') return;
+        const requestedLevel = Number.parseInt(document.getElementById('levelSetting').value, 10) || 1;
+        level = Math.max(1, Math.min(30, requestedLevel));
+        document.getElementById('levelSetting').value = level;
+        score = 0;
+        runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        buildLevel();
+        state = 'playing';
+        ui.message.classList.remove('visible');
+    });
     addEventListener('resize', resize);
     resize();
     buildLevel();
