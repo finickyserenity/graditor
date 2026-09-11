@@ -27,6 +27,157 @@
     let runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const leaderboardKey = 'graditorLeaderboard';
     const callsignKey = 'graditorCallsign';
+    const audioKey = 'graditorAudioEnabled';
+    const audio = {
+        context: null, master: null, effects: null, music: null, thrust: null,
+        noise: null, enabled: localStorage.getItem(audioKey) !== 'false'
+    };
+
+    /** Initializes the procedural soundtrack after a user gesture unlocks audio. */
+    function ensureAudio() {
+        if (!audio.enabled) return null;
+        if (audio.context) {
+            if (audio.context.state === 'suspended') audio.context.resume();
+            return audio.context;
+        }
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return null;
+        audio.context = new AudioContext();
+        audio.master = audio.context.createGain();
+        audio.effects = audio.context.createGain();
+        audio.music = audio.context.createGain();
+        audio.master.gain.value = .58;
+        audio.effects.gain.value = .7;
+        audio.music.gain.value = .15;
+        audio.effects.connect(audio.master);
+        audio.music.connect(audio.master);
+        audio.master.connect(audio.context.destination);
+        buildAmbientMusic();
+        buildThrustSound();
+        return audio.context;
+    }
+
+    /** Creates a slowly modulated, spacey chord that runs without external media. */
+    function buildAmbientMusic() {
+        const now = audio.context.currentTime;
+        const filter = audio.context.createBiquadFilter();
+        const swell = audio.context.createGain();
+        filter.type = 'lowpass';
+        filter.frequency.value = 620;
+        filter.Q.value = 5;
+        swell.gain.value = .7;
+        filter.connect(swell);
+        swell.connect(audio.music);
+        [55, 82.41, 110, 164.81].forEach((frequency, index) => {
+            const oscillator = audio.context.createOscillator();
+            const gain = audio.context.createGain();
+            oscillator.type = index % 2 ? 'sine' : 'triangle';
+            oscillator.frequency.value = frequency;
+            oscillator.detune.value = index * 3 - 4;
+            gain.gain.value = index === 0 ? .3 : .12;
+            oscillator.connect(gain);
+            gain.connect(filter);
+            oscillator.start(now);
+        });
+        const lfo = audio.context.createOscillator();
+        const lfoGain = audio.context.createGain();
+        lfo.frequency.value = .075;
+        lfoGain.gain.value = .22;
+        lfo.connect(lfoGain);
+        lfoGain.connect(swell.gain);
+        lfo.start(now);
+    }
+
+    /** Creates the continuous filtered-noise engine voice. */
+    function buildThrustSound() {
+        const length = audio.context.sampleRate * 2;
+        audio.noise = audio.context.createBuffer(1, length, audio.context.sampleRate);
+        const data = audio.noise.getChannelData(0);
+        for (let index = 0; index < length; index++) data[index] = Math.random() * 2 - 1;
+        const source = audio.context.createBufferSource();
+        const filter = audio.context.createBiquadFilter();
+        audio.thrust = audio.context.createGain();
+        source.buffer = audio.noise;
+        source.loop = true;
+        filter.type = 'bandpass';
+        filter.frequency.value = 170;
+        filter.Q.value = .7;
+        audio.thrust.gain.value = 0;
+        source.connect(filter);
+        filter.connect(audio.thrust);
+        audio.thrust.connect(audio.effects);
+        source.start();
+    }
+
+    /** Plays a short oscillator sweep for weapons and collision feedback. */
+    function playTone(startFrequency, endFrequency, duration, volume, wave = 'square') {
+        const audioContext = ensureAudio();
+        if (!audioContext) return;
+        const now = audioContext.currentTime;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = wave;
+        oscillator.frequency.setValueAtTime(startFrequency, now);
+        oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, endFrequency), now + duration);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(.001, now + duration);
+        oscillator.connect(gain);
+        gain.connect(audio.effects);
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+    }
+
+    /** Plays a compact burst of filtered noise. */
+    function playNoise(duration, volume, frequency) {
+        const audioContext = ensureAudio();
+        if (!audioContext || !audio.noise) return;
+        const now = audioContext.currentTime;
+        const source = audioContext.createBufferSource();
+        const filter = audioContext.createBiquadFilter();
+        const gain = audioContext.createGain();
+        source.buffer = audio.noise;
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(frequency, now);
+        filter.frequency.exponentialRampToValueAtTime(80, now + duration);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(.001, now + duration);
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(audio.effects);
+        source.start(now);
+        source.stop(now + duration);
+    }
+
+    /** Smoothly follows the current thrust control state. */
+    function updateThrustSound() {
+        if (!audio.context || !audio.thrust) return;
+        const active = audio.enabled && state === 'playing' && controls.thrust && ship.fuel > 0;
+        const unobstructed = state === 'playing' && !ui.settings.open && !ui.leaderboard.open;
+        audio.thrust.gain.setTargetAtTime(active ? .32 : 0, audio.context.currentTime, active ? .035 : .08);
+        audio.music.gain.setTargetAtTime(audio.enabled ? (unobstructed ? .15 : .045) : 0, audio.context.currentTime, .15);
+    }
+
+    /** Updates the audio control to reflect the current preference. */
+    function updateAudioButton() {
+        const button = document.getElementById('audioButton');
+        button.textContent = audio.enabled ? '🔊' : '🔇';
+        button.classList.toggle('muted', !audio.enabled);
+        button.setAttribute('aria-label', audio.enabled ? 'Mute audio' : 'Enable audio');
+        button.title = audio.enabled ? 'Mute audio' : 'Enable audio';
+    }
+
+    /** Updates and persists the global audio state. */
+    function setAudioEnabled(enabled) {
+        audio.enabled = enabled;
+        localStorage.setItem(audioKey, String(enabled));
+        updateAudioButton();
+        if (audio.enabled) {
+            ensureAudio();
+            if (audio.master) audio.master.gain.setTargetAtTime(.58, audio.context.currentTime, .04);
+        } else if (audio.master) {
+            audio.master.gain.setTargetAtTime(0, audio.context.currentTime, .04);
+        }
+    }
 
     function random(seed) {
         let value = seed % 2147483647;
@@ -147,6 +298,7 @@
         const directionX = Math.sin(ship.angle);
         const directionY = -Math.cos(ship.angle);
         world.bullets.push({ x: ship.x + directionX * 18, y: ship.y + directionY * 18, vx: ship.vx + directionX * 8, vy: ship.vy + directionY * 8, life: 90 });
+        playTone(920, 210, .11, .16, 'sawtooth');
         ship.cooldown = 11;
     }
 
@@ -167,6 +319,8 @@
         ship.damageEvents++;
         ship.invulnerable = 36;
         shake = 10;
+        playTone(130, 48, .42, .3, 'sawtooth');
+        playNoise(.35, .22, 900);
         emit(ship.x, ship.y, '#ff5f4d', 16, 3);
         if (ship.hull <= 0) {
             saveLeaderboardEntry();
@@ -179,6 +333,7 @@
         world.particles = world.particles.filter(particle => particle.life > 0);
         shake *= Math.pow(.96, dt);
         if (shake < .05) shake = 0;
+        updateThrustSound();
         if (state !== 'playing') return;
 
         if (controls.left) ship.angle -= .052 * dt;
@@ -217,14 +372,20 @@
             if (distance < 720 && turret.cooldown <= 0) {
                 const speed = 3.2 + level * .25;
                 world.enemyBullets.push({ x: turret.x + Math.cos(turret.angle) * 20, y: turret.y + Math.sin(turret.angle) * 20, vx: Math.cos(turret.angle) * speed, vy: Math.sin(turret.angle) * speed, life: 220 });
+                playTone(380, 115, .16, .075, 'square');
                 turret.cooldown = Math.max(55, 130 - level * 9) + Math.random() * 60;
             }
             world.bullets.forEach(bullet => {
                 if (bullet.life > 0 && Math.hypot(bullet.x - turret.x, bullet.y - turret.y) < 23) {
                     bullet.life = 0;
                     turret.health--;
+                    playTone(180, 70, .13, .12, 'triangle');
                     emit(turret.x, turret.y, turret.health > 0 ? '#ffb547' : '#c7f36a', turret.health > 0 ? 8 : 28, 3);
-                    if (turret.health <= 0) score += 750 * level;
+                    if (turret.health <= 0) {
+                        score += 750 * level;
+                        playNoise(.55, .3, 1400);
+                        playTone(90, 28, .58, .28, 'sawtooth');
+                    }
                 }
             });
         });
@@ -284,6 +445,7 @@
 
     function completeLevel() {
         state = 'complete';
+        playTone(220, 880, .8, .2, 'sine');
         score += Math.round(ship.fuel * 2 + ship.hull * 25);
         saveLeaderboardEntry();
         showMessage('SECTOR SECURED', `Level ${level} complete`, `Fuel and hull bonuses logged. The next sector has stronger emplacements and tighter terrain.`, 'ENTER NEXT SECTOR');
@@ -467,12 +629,14 @@
     });
 
     ui.start.addEventListener('click', () => {
+        ensureAudio();
         if (state === 'complete') level++;
         buildLevel();
         state = 'playing';
         ui.message.classList.remove('visible');
     });
     document.getElementById('settingsButton').addEventListener('click', () => ui.settings.showModal());
+    document.getElementById('audioButton').addEventListener('click', () => setAudioEnabled(!audio.enabled));
     document.getElementById('leaderboardButton').addEventListener('click', () => { renderLeaderboard(); ui.leaderboard.showModal(); });
     ui.callsign.value = localStorage.getItem(callsignKey) || 'PILOT';
     ui.callsign.addEventListener('input', () => localStorage.setItem(callsignKey, ui.callsign.value.toUpperCase().slice(0, 12)));
@@ -492,6 +656,7 @@
         state = 'playing';
         ui.message.classList.remove('visible');
     });
+    updateAudioButton();
     addEventListener('resize', resize);
     resize();
     buildLevel();
