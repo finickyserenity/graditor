@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#090d0c">
+    <title>Graditor</title>
+    <link rel="stylesheet" href="graditor.css">
+</head>
+<body>
+    <main class="game-shell">
+        <canvas id="game" aria-label="Graditor game field"></canvas>
+
+        <header class="topbar">
+            <div class="brand" aria-label="Graditor">
+                <span class="brand-mark">G</span>
+                <div><strong>GRADITOR</strong><small>PLANETARY DEFENSE RUN</small></div>
+            </div>
+            <div class="readouts" aria-live="polite">
+                <div><span>LEVEL</span><strong id="levelValue">01</strong></div>
+                <div><span>SCORE</span><strong id="scoreValue">000000</strong></div>
+                <div><span>HOSTILES</span><strong id="hostileValue">0</strong></div>
+            </div>
+            <button id="settingsButton" class="icon-button" type="button" aria-label="Open flight settings" title="Flight settings">⚙</button>
+        </header>
+
+        <aside class="status-panel" aria-label="Ship status">
+            <div class="meter-row"><span>FUEL</span><meter id="fuelMeter" min="0" max="100" value="100"></meter><b id="fuelValue">100</b></div>
+            <div class="meter-row"><span>HULL</span><meter id="hullMeter" min="0" max="100" value="100"></meter><b id="hullValue">100</b></div>
+            <div class="telemetry"><span id="speedValue">0.0 M/S</span><span id="altitudeValue">ALT 0</span></div>
+        </aside>
+
+        <section id="messagePanel" class="message-panel visible" aria-live="assertive">
+            <p class="eyebrow">FLIGHT BRIEFING</p>
+            <h1>Clear the ridge.<br>Come home alive.</h1>
+            <p>Destroy every defense station, then settle onto the extraction pad. Gravity never clocks out.</p>
+            <button id="startButton" class="primary-button play-button" type="button"><span aria-hidden="true">▶</span><span id="startButtonLabel">LAUNCH MISSION</span></button>
+            <div class="key-guide"><span><kbd>W</kbd> THRUST</span><span><kbd>A</kbd><kbd>D</kbd> VECTOR</span><span><kbd>SPACE</kbd> FIRE</span></div>
+        </section>
+
+        <dialog id="settingsDialog">
+            <form method="dialog">
+                <header><div><small>FLIGHT COMPUTER</small><h2>Mission variables</h2></div><button class="icon-button" value="cancel" aria-label="Close settings">×</button></header>
+                <label>Gravity <output id="gravityOutput">0.030</output><input id="gravitySetting" type="range" min="0.015" max="0.055" step="0.005" value="0.030"></label>
+                <label>Starting fuel <output id="fuelOutput">1000</output><input id="fuelSetting" type="range" min="500" max="1800" step="100" value="1000"></label>
+                <label>Thrust power <output id="thrustOutput">0.090</output><input id="thrustSetting" type="range" min="0.060" max="0.130" step="0.005" value="0.090"></label>
+                <label>Enemy fire <output id="enemyOutput">1.0×</output><input id="enemySetting" type="range" min="0.5" max="1.8" step="0.1" value="1"></label>
+                <label>Hits per station <output id="baseHitsOutput">2</output><input id="baseHitsSetting" type="range" min="1" max="8" step="1" value="2"></label>
+                <button class="primary-button" value="default">APPLY SETTINGS</button>
+            </form>
+        </dialog>
+
+        <nav class="touch-controls" aria-label="Touch flight controls">
+            <button data-control="left" aria-label="Rotate left">↶</button>
+            <button data-control="thrust" aria-label="Thrust">▲</button>
+            <button data-control="right" aria-label="Rotate right">↷</button>
+            <button class="fire-control" data-control="fire" aria-label="Fire">●</button>
+        </nav>
+    </main>
+    <script src="graditor.js"></script>
+</body>
+</html>

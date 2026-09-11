@@ -1,0 +1,175 @@
+:root {
+    color-scheme: dark;
+    --ink: #eef4e6;
+    --muted: #8b9990;
+    --acid: #c7f36a;
+    --amber: #ffb547;
+    --danger: #ff5f4d;
+    --panel: rgba(7, 12, 11, 0.78);
+    --line: rgba(211, 232, 205, 0.2);
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #090d0c; }
+
+body {
+    color: var(--ink);
+    font-family: "Avenir Next Condensed", "DIN Condensed", sans-serif;
+    letter-spacing: 0;
+    user-select: none;
+}
+
+.game-shell { position: relative; width: 100%; height: 100%; overflow: hidden; }
+
+.game-shell::before {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    opacity: 0;
+    background-color: rgba(4, 7, 6, .82);
+    background-image: radial-gradient(circle, rgba(199, 243, 106, .16) 0 1px, transparent 1.2px);
+    background-size: 4px 4px;
+    transition: opacity .25s ease;
+}
+
+.game-shell:has(.message-panel.visible)::before { opacity: 1; }
+
+#game { display: block; width: 100%; height: 100%; touch-action: none; background: #090d0c; }
+
+.game-shell::after {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 4px);
+    mix-blend-mode: screen;
+}
+
+.topbar {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 76px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: max(14px, env(safe-area-inset-top)) 22px 12px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(6, 10, 9, .92), rgba(6, 10, 9, .3));
+}
+
+.brand { display: flex; align-items: center; gap: 11px; min-width: 240px; }
+.brand-mark { display: grid; place-items: center; width: 37px; height: 37px; color: #11160f; background: var(--acid); font: 700 26px/1 Monaco, monospace; clip-path: polygon(0 0, 100% 0, 100% 72%, 73% 100%, 0 100%); }
+.brand strong { display: block; font: 600 20px/1 Monaco, monospace; }
+.brand small, .topbar span, dialog small { display: block; color: var(--muted); font-size: 10px; letter-spacing: 1.5px; }
+
+.readouts { display: flex; gap: 30px; margin-left: auto; }
+.readouts div { min-width: 62px; }
+.readouts strong { font: 600 18px/1.2 Monaco, monospace; }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+.icon-button { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 2px; background: rgba(12, 18, 16, .75); font-size: 19px; }
+.icon-button:hover { color: var(--acid); border-color: var(--acid); }
+
+.status-panel {
+    position: absolute;
+    z-index: 2;
+    left: 22px;
+    bottom: 22px;
+    width: 270px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--acid);
+    background: var(--panel);
+    backdrop-filter: blur(8px);
+}
+
+.meter-row { display: grid; grid-template-columns: 35px 1fr 30px; align-items: center; gap: 9px; margin: 5px 0; font-size: 11px; }
+.meter-row b { color: var(--acid); font: 500 11px Monaco, monospace; text-align: right; }
+meter { width: 100%; height: 6px; border: 0; background: #28302c; }
+meter::-webkit-meter-bar { height: 5px; border: 0; border-radius: 0; background: #28302c; }
+meter::-webkit-meter-optimum-value { background: var(--acid); }
+.telemetry { display: flex; justify-content: space-between; margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--line); color: var(--muted); font: 500 11px Monaco, monospace; }
+
+.message-panel {
+    position: absolute;
+    z-index: 4;
+    top: 50%;
+    left: clamp(28px, 9vw, 140px);
+    width: min(520px, calc(100vw - 56px));
+    max-height: calc(100dvh - 120px);
+    overflow-y: auto;
+    transform: translateY(-47%);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .25s ease, transform .25s ease, visibility .25s;
+}
+.message-panel.visible { transform: translateY(-50%); opacity: 1; visibility: visible; }
+.eyebrow { margin: 0 0 14px; color: var(--acid); font: 600 12px Monaco, monospace; letter-spacing: 2px; }
+.message-panel h1 { margin: 0; max-width: 500px; font: 600 clamp(44px, 7vw, 82px)/.9 "Avenir Next Condensed", "DIN Condensed", sans-serif; text-transform: uppercase; }
+.message-panel > p:not(.eyebrow) { max-width: 420px; color: #b7c1b9; font-size: 18px; line-height: 1.35; }
+.primary-button { min-height: 45px; padding: 0 22px; border: 0; border-radius: 2px; color: #11160f; background: var(--acid); font: 700 13px Monaco, monospace; letter-spacing: 1px; }
+.primary-button:hover { filter: brightness(1.08); }
+.play-button { display: inline-flex; align-items: center; gap: 10px; }
+.play-button > span:first-child { font-size: 12px; }
+.key-guide { display: flex; gap: 22px; margin-top: 24px; color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+kbd { min-width: 24px; height: 22px; display: inline-grid; place-items: center; margin-right: 3px; border: 1px solid #566159; border-radius: 2px; color: var(--ink); font: 500 10px Monaco, monospace; }
+
+dialog { width: min(430px, calc(100vw - 32px)); padding: 0; border: 1px solid #455149; border-radius: 3px; color: var(--ink); background: #101614; box-shadow: 0 24px 80px #000; }
+dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(4px); }
+dialog form { padding: 22px; }
+dialog header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px; }
+dialog h2 { margin: 3px 0 0; font: 600 27px Monaco, monospace; }
+dialog label { display: grid; grid-template-columns: 1fr auto; gap: 7px; margin: 20px 0; color: #c5cec7; font-size: 15px; }
+dialog output { color: var(--acid); font: 500 12px Monaco, monospace; }
+dialog input { grid-column: 1 / -1; width: 100%; accent-color: var(--acid); }
+dialog .primary-button { width: 100%; margin-top: 10px; }
+
+.touch-controls { display: none; }
+
+@media (max-width: 720px), (pointer: coarse) {
+    .topbar { height: 64px; padding-inline: 12px; gap: 12px; }
+    .brand { min-width: 0; }
+    .brand small { display: none; }
+    .brand strong { font-size: 15px; }
+    .brand-mark { width: 32px; height: 32px; font-size: 22px; }
+    .readouts { gap: 13px; }
+    .readouts div:nth-child(2) { display: none; }
+    .readouts strong { font-size: 14px; }
+    .icon-button { width: 36px; height: 36px; }
+    .message-panel { top: 44%; left: 22px; width: calc(100vw - 44px); max-height: calc(100dvh - 150px); }
+    .message-panel h1 { font-size: clamp(42px, 15vw, 64px); }
+    .message-panel > p:not(.eyebrow) { font-size: 16px; }
+    .key-guide { display: none; }
+    .status-panel { left: 12px; bottom: calc(96px + env(safe-area-inset-bottom)); width: 205px; padding: 9px 11px; }
+    .touch-controls { position: absolute; z-index: 3; display: grid; grid-template-columns: repeat(3, 54px); gap: 8px; left: 12px; bottom: max(20px, env(safe-area-inset-bottom)); }
+    .touch-controls button { width: 54px; height: 54px; border: 1px solid rgba(238,244,230,.35); border-radius: 50%; background: rgba(8,14,12,.7); font-size: 22px; touch-action: none; }
+    .touch-controls button:active { color: #101510; background: var(--acid); }
+    .touch-controls .fire-control { position: fixed; right: 18px; bottom: max(23px, env(safe-area-inset-bottom)); width: 66px; height: 66px; color: var(--amber); border-color: var(--amber); }
+}
+
+@media (max-height: 530px) {
+    .message-panel { top: 68px; bottom: 14px; max-height: none; transform: translateY(8px); }
+    .message-panel.visible { transform: none; }
+    .message-panel h1 { font-size: 36px; line-height: .92; }
+    .message-panel > p:not(.eyebrow) { margin-block: 8px; max-width: 470px; font-size: 14px; }
+    .message-panel .eyebrow { margin-bottom: 7px; }
+    .message-panel .primary-button { min-height: 38px; }
+    dialog form { padding: 12px 16px; }
+    dialog header { margin-bottom: 8px; }
+    dialog h2 { font-size: 19px; }
+    dialog label { gap: 2px; margin: 7px 0; font-size: 13px; }
+    dialog .primary-button { min-height: 36px; margin-top: 5px; }
+    .key-guide { display: none; }
+    .status-panel { display: none; }
+}
+
+@media (max-height: 400px) {
+    .message-panel h1 { font-size: 30px; }
+    .message-panel > p:not(.eyebrow) { font-size: 13px; line-height: 1.2; }
+}
