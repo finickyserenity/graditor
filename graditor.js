@@ -12,6 +12,7 @@
         start: document.getElementById('startButton'), startLabel: document.getElementById('startButtonLabel'),
         settings: document.getElementById('settingsDialog'), leaderboard: document.getElementById('leaderboardDialog'),
         leaderboardList: document.getElementById('leaderboardList'), callsign: document.getElementById('callsignInput'),
+        leaderboardMode: document.getElementById('leaderboardMode'), clearLeaderboard: document.getElementById('clearLeaderboardButton'),
         radiationOverlay: document.getElementById('radiationOverlay'), radiationWarning: document.getElementById('radiationWarning'),
         radiationStatus: document.getElementById('radiationStatus')
     };
@@ -634,19 +635,38 @@
         }
     }
 
-    /** Saves or updates this run among the ten highest local scores. */
+    /** Returns the preset board for untouched settings, or the shared custom board. */
+    function getLeaderboardMode() {
+        const preset = difficultyPresets[config.mode];
+        const customized = Object.keys(configurableRanges).some(key => config[key] !== preset[key]);
+        return customized ? 'custom' : config.mode;
+    }
+
+    const getEntryMode = entry => entry.mode || 'easy';
+
+    /** Saves or updates this run among the ten highest local scores for each mode. */
     function saveLeaderboardEntry() {
         const callsign = (ui.callsign.value.trim() || 'PILOT').toUpperCase().slice(0, 12);
         const entries = loadLeaderboard().filter(entry => entry.id !== runId);
-        entries.push({ id: runId, callsign, score: Math.round(score), level, savedAt: Date.now() });
+        entries.push({ id: runId, mode: getLeaderboardMode(), callsign, score: Math.round(score), level, savedAt: Date.now() });
         entries.sort((first, second) => second.score - first.score || second.level - first.level);
-        localStorage.setItem(leaderboardKey, JSON.stringify(entries.slice(0, 10)));
+        const boardCounts = {};
+        const rankedEntries = entries.filter(entry => {
+            const mode = getEntryMode(entry);
+            boardCounts[mode] = (boardCounts[mode] || 0) + 1;
+            return boardCounts[mode] <= 10;
+        });
+        localStorage.setItem(leaderboardKey, JSON.stringify(rankedEntries));
         renderLeaderboard();
     }
 
     /** Renders the current local flight records into the leaderboard dialog. */
     function renderLeaderboard() {
-        const entries = loadLeaderboard();
+        const mode = getLeaderboardMode();
+        const modeLabel = mode.charAt(0).toUpperCase() + mode.slice(1);
+        const entries = loadLeaderboard().filter(entry => getEntryMode(entry) === mode);
+        ui.leaderboardMode.textContent = `LOCAL ${mode.toUpperCase()} FLIGHT RECORDS`;
+        ui.clearLeaderboard.textContent = `CLEAR ${modeLabel.toUpperCase()} RECORDS`;
         ui.leaderboardList.replaceChildren();
         if (!entries.length) {
             const empty = document.createElement('li');
@@ -941,7 +961,12 @@
         localStorage.setItem(callsignKey, ui.callsign.value);
         if (state === 'dead') saveLeaderboardEntry();
     });
-    document.getElementById('clearLeaderboardButton').addEventListener('click', () => { localStorage.removeItem(leaderboardKey); renderLeaderboard(); });
+    ui.clearLeaderboard.addEventListener('click', () => {
+        const mode = getLeaderboardMode();
+        const entries = loadLeaderboard().filter(entry => getEntryMode(entry) !== mode);
+        localStorage.setItem(leaderboardKey, JSON.stringify(entries));
+        renderLeaderboard();
+    });
     const installHint = document.getElementById('installHint');
     if (sessionStorage.getItem('graditorInstallHintDismissed') === 'true') installHint.hidden = true;
     document.getElementById('dismissInstallHint').addEventListener('click', () => {
