@@ -42,6 +42,14 @@
     const leaderboardKey = 'graditorLeaderboard';
     const callsignKey = 'graditorCallsign';
     const audioKey = 'graditorAudioEnabled';
+    const progressKey = 'graditorProgress';
+    const configurableRanges = {
+        gravity: [.012, .035],
+        maxFuel: [1600, 4000],
+        thrust: [.09, .135],
+        enemyRate: [.35, 1.2],
+        baseHits: [1, 4]
+    };
     const audio = {
         context: null, master: null, effects: null, music: null, thrust: null,
         noise: null, enabled: localStorage.getItem(audioKey) !== 'false'
@@ -576,11 +584,41 @@
     function applyDifficultyPreset(mode) {
         config.mode = mode;
         Object.assign(config, difficultyPresets[mode]);
+        syncDifficultyControls();
+    }
+
+    function syncDifficultyControls() {
         const controlsByKey = { gravity: 'gravitySetting', maxFuel: 'fuelSetting', thrust: 'thrustSetting', enemyRate: 'enemySetting', baseHits: 'baseHitsSetting' };
         const outputsByKey = { gravity: ['gravityOutput', value => value.toFixed(3)], maxFuel: ['fuelOutput', Math.round], thrust: ['thrustOutput', value => value.toFixed(3)], enemyRate: ['enemyOutput', value => `${value.toFixed(2)}×`], baseHits: ['baseHitsOutput', Math.round] };
         Object.entries(controlsByKey).forEach(([key, id]) => { document.getElementById(id).value = config[key]; });
         Object.entries(outputsByKey).forEach(([key, [id, format]]) => { document.getElementById(id).value = format(config[key]); });
         updateDifficultySummary();
+    }
+
+    function saveProgress() {
+        const savedConfig = { mode: config.mode };
+        Object.keys(configurableRanges).forEach(key => { savedConfig[key] = config[key]; });
+        localStorage.setItem(progressKey, JSON.stringify({ version: 1, level, config: savedConfig }));
+    }
+
+    function restoreProgress() {
+        let saved;
+        try {
+            saved = JSON.parse(localStorage.getItem(progressKey) || 'null');
+        } catch (error) {
+            saved = null;
+        }
+        const mode = saved?.config && difficultyPresets[saved.config.mode] ? saved.config.mode : 'easy';
+        applyDifficultyPreset(mode);
+        document.querySelector(`input[name="difficulty"][value="${mode}"]`).checked = true;
+        Object.entries(configurableRanges).forEach(([key, [minimum, maximum]]) => {
+            const value = Number(saved?.config?.[key]);
+            if (Number.isFinite(value) && value >= minimum && value <= maximum) config[key] = value;
+        });
+        const savedLevel = Number(saved?.level);
+        if (Number.isSafeInteger(savedLevel) && savedLevel >= 1) level = savedLevel;
+        document.getElementById('levelSetting').value = level;
+        syncDifficultyControls();
     }
 
     /**
@@ -880,6 +918,7 @@
             return;
         }
         if (state === 'complete') level++;
+        saveProgress();
         buildLevel();
         state = 'playing';
         ui.message.classList.remove('visible');
@@ -928,6 +967,7 @@
         document.getElementById('levelSetting').value = level;
         score = 0;
         runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        saveProgress();
         buildLevel();
         state = 'playing';
         stateBeforeSettings = null;
@@ -936,7 +976,8 @@
     updateAudioButton();
     addEventListener('resize', resize);
     resize();
-    applyDifficultyPreset('easy');
+    restoreProgress();
+    saveProgress();
     buildLevel();
     if ('serviceWorker' in navigator) {
         const updateHint = document.getElementById('updateHint');
