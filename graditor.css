@@ -240,13 +240,15 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
         transform: translateX(-50%);
     }
     .touch-controls { position: absolute; z-index: 3; display: block; left: 16px; bottom: max(48px, calc(38px + env(safe-area-inset-bottom))); touch-action: none; }
-    .touch-controls button { width: 54px; height: 54px; border: 1px solid rgba(238,244,230,.35); border-radius: 50%; background: rgba(8,14,12,.7); font-size: 22px; touch-action: none; }
+    .touch-controls button { width: 54px; height: 54px; border: 1px solid rgba(238,244,230,.35); border-radius: 50%; background: rgba(8,14,12,.7); font-size: 22px; touch-action: none; -webkit-appearance: none; -webkit-tap-highlight-color: transparent; -webkit-user-drag: none; }
     .touch-controls button:active { color: #101510; background: var(--acid); }
     .touch-controls .flight-stick { position: relative; width: 112px; height: 112px; border-color: rgba(238,244,230,.24); background: rgba(8,14,12,.55); }
     .flight-stick::after { position: absolute; content: ""; background: rgba(238,244,230,.13); pointer-events: none; }
     .flight-stick::after { top: 50%; right: 18px; left: 18px; height: 1px; }
     .flight-stick-knob { position: absolute; z-index: 1; top: 50%; left: 50%; width: 46px; height: 46px; border: 1px solid var(--acid); border-radius: 50%; background: rgba(24,34,28,.92); transform: translate(-50%, -50%); pointer-events: none; }
     .flight-stick.active .flight-stick-knob { background: rgba(199,243,106,.28); }
+    .thrust-glyph { display: block; width: 0; height: 0; margin: auto; border-right: 9px solid transparent; border-bottom: 15px solid currentColor; border-left: 9px solid transparent; pointer-events: none; }
+    .fire-glyph { display: block; width: 10px; height: 10px; margin: auto; border-radius: 50%; background: currentColor; pointer-events: none; }
     .touch-controls .thrust-control { position: fixed; right: 16px; bottom: max(48px, calc(38px + env(safe-area-inset-bottom))); width: 78px; height: 78px; color: var(--acid); border-color: var(--acid); }
     .touch-controls .fire-control { position: fixed; right: 25px; bottom: max(134px, calc(124px + env(safe-area-inset-bottom))); width: 60px; height: 60px; color: var(--amber); border-color: var(--amber); }
 }

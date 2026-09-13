@@ -663,6 +663,13 @@
     const keyMap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'thrust', KeyW: 'thrust', Space: 'fire' };
     addEventListener('keydown', event => { if (keyMap[event.code]) { controls[keyMap[event.code]] = true; event.preventDefault(); } });
     addEventListener('keyup', event => { if (keyMap[event.code]) controls[keyMap[event.code]] = false; });
+    const touchControls = document.querySelector('.touch-controls');
+    ['touchstart', 'touchmove', 'touchend'].forEach(type => {
+        touchControls.addEventListener(type, event => event.preventDefault(), { passive: false });
+    });
+    ['contextmenu', 'dragstart', 'selectstart'].forEach(type => {
+        touchControls.addEventListener(type, event => event.preventDefault());
+    });
     document.querySelectorAll('[data-control]').forEach(button => {
         const control = button.dataset.control;
         const release = event => {
