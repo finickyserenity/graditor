@@ -786,25 +786,57 @@
     });
     const flightStick = document.getElementById('flightStick');
     const flightStickKnob = flightStick.querySelector('.flight-stick-knob');
+    let flightStickGesture = null;
+    let flightStickPulse = 0;
+    const setFlightStickValue = (x, radius, deadZone) => {
+        const clampedX = Math.max(-radius, Math.min(radius, x));
+        flightStickKnob.style.transform = `translate(calc(-50% + ${clampedX}px), -50%)`;
+        controls.left = clampedX < -deadZone ? Math.min(1, (-clampedX - deadZone) / (radius - deadZone)) : 0;
+        controls.right = clampedX > deadZone ? Math.min(1, (clampedX - deadZone) / (radius - deadZone)) : 0;
+    };
     const updateFlightStick = event => {
         const bounds = flightStick.getBoundingClientRect();
         const offsetX = event.clientX - bounds.left - bounds.width / 2;
-        const radius = bounds.width * .32;
-        const x = Math.max(-radius, Math.min(radius, offsetX));
-        const deadZone = bounds.width * .09;
-        flightStickKnob.style.transform = `translate(calc(-50% + ${x}px), -50%)`;
-        controls.left = x < -deadZone ? Math.min(1, (-x - deadZone) / (radius - deadZone)) : 0;
-        controls.right = x > deadZone ? Math.min(1, (x - deadZone) / (radius - deadZone)) : 0;
+        const radius = 36;
+        const deadZone = 8;
+        const x = flightStickGesture?.relative ? event.clientX - flightStickGesture.startX : offsetX;
+        if (flightStickGesture) flightStickGesture.lastX = event.clientX;
+        setFlightStickValue(x, radius, deadZone);
     };
-    const releaseFlightStick = event => {
+    const releaseFlightStick = (event, allowSwipe = false) => {
         if (event.pointerId !== undefined && flightStick.hasPointerCapture(event.pointerId)) flightStick.releasePointerCapture(event.pointerId);
+        const gesture = flightStickGesture;
+        flightStickGesture = null;
         flightStick.classList.remove('active');
         flightStickKnob.style.transform = '';
         controls.left = false;
         controls.right = false;
+        if (!allowSwipe || !gesture) return;
+        const distance = (event.clientX ?? gesture.lastX) - gesture.startX;
+        const elapsed = performance.now() - gesture.startedAt;
+        if (Math.abs(distance) < 8 || elapsed > 350) return;
+        const strength = Math.min(.5, Math.max(.18, Math.abs(distance) / 90));
+        const pulse = ++flightStickPulse;
+        controls.left = distance < 0 ? strength : 0;
+        controls.right = distance > 0 ? strength : 0;
+        setTimeout(() => {
+            if (pulse !== flightStickPulse || flightStickGesture) return;
+            controls.left = false;
+            controls.right = false;
+        }, Math.min(150, 70 + Math.abs(distance)));
     };
     flightStick.addEventListener('pointerdown', event => {
         event.preventDefault();
+        const bounds = flightStick.getBoundingClientRect();
+        const offsetX = event.clientX - bounds.left - bounds.width / 2;
+        flightStickPulse++;
+        flightStickGesture = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            lastX: event.clientX,
+            startedAt: performance.now(),
+            relative: Math.abs(offsetX) > 56
+        };
         flightStick.classList.add('active');
         updateFlightStick(event);
         try { flightStick.setPointerCapture(event.pointerId); } catch (error) { /* Pointer capture is optional input hardening. */ }
@@ -812,7 +844,10 @@
     flightStick.addEventListener('pointermove', event => {
         if (flightStick.hasPointerCapture(event.pointerId)) updateFlightStick(event);
     });
-    flightStick.addEventListener('pointerup', releaseFlightStick);
+    flightStick.addEventListener('pointerup', event => {
+        updateFlightStick(event);
+        releaseFlightStick(event, true);
+    });
     flightStick.addEventListener('pointercancel', releaseFlightStick);
 
     let previousCenterTap = null;
