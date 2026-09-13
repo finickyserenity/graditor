@@ -15,6 +15,10 @@
     };
 
     const controls = { left: false, right: false, thrust: false, fire: false };
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const iosDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    document.documentElement.classList.toggle('standalone', standalone);
+    document.documentElement.classList.toggle('ios-browser', iosDevice);
     const difficultyPresets = {
         easy: { gravity: .018, maxFuel: 2600, fuelPerLevel: 180, thrust: .115, enemyRate: .45, baseHits: 1, turretBase: 2, turretGrowth: .7, damageMultiplier: .65, terrainScale: .55, passageBonus: 120 },
         medium: { gravity: .022, maxFuel: 2300, fuelPerLevel: 160, thrust: .11, enemyRate: .65, baseHits: 1, turretBase: 3, turretGrowth: .9, damageMultiplier: .8, terrainScale: .7, passageBonus: 80 },
@@ -24,6 +28,7 @@
     const config = { mode: 'easy', ...difficultyPresets.easy };
     const world = { width: 8200, height: 2300, floor: [], ceiling: [], pads: [], stars: [], turrets: [], particles: [], bullets: [], enemyBullets: [] };
     const camera = { x: 0, y: 0 };
+    const viewport = { width: innerWidth, height: innerHeight, scale: 1 };
     const ship = { x: 180, y: 0, vx: 0, vy: 0, angle: 0, radius: 13, fuel: 1000, hull: 100, cooldown: 0, invulnerable: 0, damageEvents: 0, tipped: false };
     let level = 1;
     let score = 0;
@@ -157,9 +162,10 @@
     /** Smoothly follows the current thrust control state. */
     function updateThrustSound() {
         if (!audio.context || !audio.thrust) return;
-        const active = audio.enabled && state === 'playing' && controls.thrust && ship.fuel > 0;
+        const thrustAmount = Number(controls.thrust);
+        const active = audio.enabled && state === 'playing' && thrustAmount > 0 && ship.fuel > 0;
         const unobstructed = state === 'playing' && !ui.settings.open && !ui.leaderboard.open;
-        audio.thrust.gain.setTargetAtTime(active ? .32 : 0, audio.context.currentTime, active ? .035 : .08);
+        audio.thrust.gain.setTargetAtTime(active ? .12 + thrustAmount * .2 : 0, audio.context.currentTime, active ? .035 : .08);
         audio.music.gain.setTargetAtTime(audio.enabled ? (unobstructed ? .15 : .045) : 0, audio.context.currentTime, .15);
     }
 
@@ -279,16 +285,21 @@
         ship.damageEvents = 0;
         ship.tipped = false;
         camera.x = 0;
-        camera.y = Math.max(0, ship.y - canvas.height * .65);
+        camera.y = Math.max(0, ship.y - viewport.height * .65);
     }
 
     function resize() {
         const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        const compactLandscape = innerWidth > innerHeight && innerHeight <= 530;
+        const mobileViewport = innerWidth <= 720 || compactLandscape || window.matchMedia('(pointer: coarse)').matches;
+        viewport.scale = mobileViewport ? (innerWidth > innerHeight ? .55 : .75) : 1;
+        viewport.width = innerWidth / viewport.scale;
+        viewport.height = innerHeight / viewport.scale;
         canvas.width = Math.floor(innerWidth * ratio);
         canvas.height = Math.floor(innerHeight * ratio);
         canvas.style.width = `${innerWidth}px`;
         canvas.style.height = `${innerHeight}px`;
-        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.setTransform(ratio * viewport.scale, 0, 0, ratio * viewport.scale, 0, 0);
     }
 
     function emit(x, y, color, count, speed = 2) {
@@ -342,12 +353,13 @@
         updateThrustSound();
         if (state !== 'playing') return;
 
-        if (controls.left) ship.angle -= .052 * dt;
-        if (controls.right) ship.angle += .052 * dt;
+        if (controls.left) ship.angle -= .052 * Number(controls.left) * dt;
+        if (controls.right) ship.angle += .052 * Number(controls.right) * dt;
         if (controls.thrust && ship.fuel > 0) {
-            ship.vx += Math.sin(ship.angle) * config.thrust * dt;
-            ship.vy -= Math.cos(ship.angle) * config.thrust * dt;
-            ship.fuel = Math.max(0, ship.fuel - .85 * dt);
+            const thrustAmount = Number(controls.thrust);
+            ship.vx += Math.sin(ship.angle) * config.thrust * thrustAmount * dt;
+            ship.vy -= Math.cos(ship.angle) * config.thrust * thrustAmount * dt;
+            ship.fuel = Math.max(0, ship.fuel - .85 * thrustAmount * dt);
             const nozzleX = ship.x - Math.sin(ship.angle) * 14;
             const nozzleY = ship.y + Math.cos(ship.angle) * 14;
             emit(nozzleX, nozzleY, Math.random() > .4 ? '#ffb547' : '#c7f36a', 1, 1.2);
@@ -436,16 +448,16 @@
 
         const screenX = ship.x - camera.x;
         const screenY = ship.y - camera.y;
-        const leftEdge = innerWidth * .3;
-        const rightEdge = innerWidth * .7;
-        const topEdge = innerHeight * .28;
-        const bottomEdge = innerHeight * .72;
+        const leftEdge = viewport.width * .3;
+        const rightEdge = viewport.width * .7;
+        const topEdge = viewport.height * .28;
+        const bottomEdge = viewport.height * .72;
         if (screenX < leftEdge) camera.x += (screenX - leftEdge) * .08 * dt;
         if (screenX > rightEdge) camera.x += (screenX - rightEdge) * .08 * dt;
         if (screenY < topEdge) camera.y += (screenY - topEdge) * .08 * dt;
         if (screenY > bottomEdge) camera.y += (screenY - bottomEdge) * .08 * dt;
-        camera.x = Math.max(0, Math.min(world.width - innerWidth, camera.x));
-        camera.y = Math.max(0, Math.min(world.height - innerHeight, camera.y));
+        camera.x = Math.max(0, Math.min(world.width - viewport.width, camera.x));
+        camera.y = Math.max(0, Math.min(world.height - viewport.height, camera.y));
         updateHud();
     }
 
@@ -569,17 +581,17 @@
     }
 
     function render() {
-        context.clearRect(0, 0, innerWidth, innerHeight);
-        const gradient = context.createLinearGradient(0, 0, 0, innerHeight);
+        context.clearRect(0, 0, viewport.width, viewport.height);
+        const gradient = context.createLinearGradient(0, 0, 0, viewport.height);
         gradient.addColorStop(0, '#080c0c'); gradient.addColorStop(1, '#151b16');
-        context.fillStyle = gradient; context.fillRect(0, 0, innerWidth, innerHeight);
+        context.fillStyle = gradient; context.fillRect(0, 0, viewport.width, viewport.height);
         context.save();
         context.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
 
         world.stars.forEach(star => {
             const x = star.x - camera.x * star.depth;
             const y = star.y - camera.y * star.depth;
-            if (x > 0 && x < innerWidth && y > 0 && y < innerHeight) {
+            if (x > 0 && x < viewport.width && y > 0 && y < viewport.height) {
                 context.globalAlpha = .25 + star.depth;
                 context.fillStyle = '#d8e3d5'; context.fillRect(x, y, star.size, star.size);
             }
@@ -589,8 +601,8 @@
         drawTerrain(world.floor, '#252d27', '#7f927e');
         drawTerrain(world.ceiling, '#202722', '#657667', true);
         context.strokeStyle = 'rgba(199,243,106,.055)'; context.lineWidth = 1;
-        for (let x = -(camera.x % 80); x < innerWidth; x += 80) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x, innerHeight); context.stroke(); }
-        for (let y = -(camera.y % 80); y < innerHeight; y += 80) { context.beginPath(); context.moveTo(0, y); context.lineTo(innerWidth, y); context.stroke(); }
+        for (let x = -(camera.x % 80); x < viewport.width; x += 80) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x, viewport.height); context.stroke(); }
+        for (let y = -(camera.y % 80); y < viewport.height; y += 80) { context.beginPath(); context.moveTo(0, y); context.lineTo(viewport.width, y); context.stroke(); }
 
         world.pads.forEach(pad => {
             const x = pad.x - camera.x, y = pad.y - camera.y;
@@ -656,6 +668,42 @@
         const set = value => event => { event.preventDefault(); controls[control] = value; };
         button.addEventListener('pointerdown', set(true)); button.addEventListener('pointerup', set(false)); button.addEventListener('pointercancel', set(false)); button.addEventListener('pointerleave', set(false));
     });
+    const flightStick = document.getElementById('flightStick');
+    const flightStickKnob = flightStick.querySelector('.flight-stick-knob');
+    const updateFlightStick = event => {
+        const bounds = flightStick.getBoundingClientRect();
+        const offsetX = event.clientX - bounds.left - bounds.width / 2;
+        const offsetY = event.clientY - bounds.top - bounds.height / 2;
+        const distance = Math.hypot(offsetX, offsetY);
+        const radius = bounds.width * .32;
+        const scale = distance > radius ? radius / distance : 1;
+        const x = offsetX * scale;
+        const y = offsetY * scale;
+        const deadZone = bounds.width * .09;
+        flightStickKnob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+        controls.left = x < -deadZone ? Math.min(1, (-x - deadZone) / (radius - deadZone)) : 0;
+        controls.right = x > deadZone ? Math.min(1, (x - deadZone) / (radius - deadZone)) : 0;
+        controls.thrust = y < -deadZone ? Math.min(1, (-y - deadZone) / (radius - deadZone)) : 0;
+    };
+    const releaseFlightStick = event => {
+        if (event.pointerId !== undefined && flightStick.hasPointerCapture(event.pointerId)) flightStick.releasePointerCapture(event.pointerId);
+        flightStick.classList.remove('active');
+        flightStickKnob.style.transform = '';
+        controls.left = false;
+        controls.right = false;
+        controls.thrust = false;
+    };
+    flightStick.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        flightStick.setPointerCapture(event.pointerId);
+        flightStick.classList.add('active');
+        updateFlightStick(event);
+    });
+    flightStick.addEventListener('pointermove', event => {
+        if (flightStick.hasPointerCapture(event.pointerId)) updateFlightStick(event);
+    });
+    flightStick.addEventListener('pointerup', releaseFlightStick);
+    flightStick.addEventListener('pointercancel', releaseFlightStick);
 
     ui.start.addEventListener('click', () => {
         ensureAudio();
@@ -670,6 +718,12 @@
     ui.callsign.value = localStorage.getItem(callsignKey) || 'PILOT';
     ui.callsign.addEventListener('input', () => localStorage.setItem(callsignKey, ui.callsign.value.toUpperCase().slice(0, 12)));
     document.getElementById('clearLeaderboardButton').addEventListener('click', () => { localStorage.removeItem(leaderboardKey); renderLeaderboard(); });
+    const installHint = document.getElementById('installHint');
+    if (sessionStorage.getItem('graditorInstallHintDismissed') === 'true') installHint.hidden = true;
+    document.getElementById('dismissInstallHint').addEventListener('click', () => {
+        installHint.hidden = true;
+        sessionStorage.setItem('graditorInstallHintDismissed', 'true');
+    });
     document.querySelectorAll('input[name="difficulty"]').forEach(input => {
         input.addEventListener('change', () => applyDifficultyPreset(input.value));
     });
@@ -694,5 +748,35 @@
     resize();
     applyDifficultyPreset('easy');
     buildLevel();
+    if ('serviceWorker' in navigator) {
+        const updateHint = document.getElementById('updateHint');
+        const applyUpdateButton = document.getElementById('applyUpdateButton');
+        let waitingWorker = null;
+        let reloading = false;
+        const offerUpdate = worker => {
+            waitingWorker = worker;
+            updateHint.hidden = false;
+        };
+        applyUpdateButton.addEventListener('click', () => {
+            applyUpdateButton.disabled = true;
+            applyUpdateButton.textContent = 'UPDATING';
+            waitingWorker?.postMessage({ type: 'SKIP_WAITING' });
+        });
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (reloading) return;
+            reloading = true;
+            location.reload();
+        });
+        navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).then(registration => {
+            if (registration.waiting) offerUpdate(registration.waiting);
+            registration.addEventListener('updatefound', () => {
+                const worker = registration.installing;
+                worker.addEventListener('statechange', () => {
+                    if (worker.state === 'installed' && navigator.serviceWorker.controller) offerUpdate(worker);
+                });
+            });
+            registration.update();
+        });
+    }
     requestAnimationFrame(loop);
 })();

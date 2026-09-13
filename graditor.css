@@ -20,6 +20,12 @@ body {
     user-select: none;
 }
 
+.game-shell, .game-shell * {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
 .game-shell { position: relative; width: 100%; height: 100%; overflow: hidden; }
 
 .game-shell::before {
@@ -72,7 +78,15 @@ body {
 .readouts div { min-width: 62px; }
 .readouts strong { font: 600 18px/1.2 Monaco, monospace; }
 
-button { font: inherit; color: inherit; cursor: pointer; }
+button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
 .icon-button { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 2px; background: rgba(12, 18, 16, .75); font-size: 19px; }
 .icon-button:hover { color: var(--acid); border-color: var(--acid); }
 .icon-button.muted { color: var(--muted); opacity: .72; }
@@ -155,6 +169,26 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
 .secondary-button:hover { color: var(--danger); border-color: var(--danger); }
 
 .touch-controls { display: none; }
+.install-hint { display: none; }
+.update-hint {
+    position: absolute;
+    z-index: 8;
+    top: max(84px, calc(68px + env(safe-area-inset-top)));
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: min(410px, calc(100vw - 32px));
+    padding: 10px 10px 10px 14px;
+    border: 1px solid var(--acid);
+    background: rgba(7,12,11,.96);
+    box-shadow: 0 8px 30px rgba(0,0,0,.45);
+    transform: translateX(-50%);
+}
+.update-hint[hidden] { display: none; }
+.update-hint span { flex: 1; color: var(--muted); font-size: 12px; }
+.update-hint strong { display: block; color: var(--acid); font: 600 10px Monaco, monospace; letter-spacing: 1px; }
+.update-hint button { min-height: 34px; padding: 0 12px; border: 0; color: #11160f; background: var(--acid); font: 700 10px Monaco, monospace; }
 
 @media (max-width: 720px), (pointer: coarse) {
     .topbar { height: 64px; padding-inline: 12px; gap: 12px; }
@@ -170,11 +204,73 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
     .message-panel h1 { font-size: clamp(42px, 15vw, 64px); }
     .message-panel > p:not(.eyebrow) { font-size: 16px; }
     .key-guide { display: none; }
-    .status-panel { left: 12px; bottom: calc(96px + env(safe-area-inset-bottom)); width: 205px; padding: 9px 11px; }
-    .touch-controls { position: absolute; z-index: 3; display: grid; grid-template-columns: repeat(3, 54px); gap: 8px; left: 12px; bottom: max(20px, env(safe-area-inset-bottom)); }
+    .status-panel {
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        width: auto;
+        min-height: calc(34px + env(safe-area-inset-bottom));
+        padding: 9px max(12px, env(safe-area-inset-right)) calc(9px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        border: 0;
+        border-top: 1px solid var(--line);
+        background: rgba(7,12,11,.88);
+        backdrop-filter: blur(6px);
+    }
+    .status-panel .meter-row { grid-template-columns: 28px minmax(0, 1fr) 24px; gap: 5px; margin: 0; }
+    .status-panel .meter-row:first-child { direction: rtl; }
+    .status-panel .meter-row:first-child > * { direction: ltr; }
+    .status-panel .meter-row:first-child > span { text-align: right; }
+    .status-panel .meter-row b { font-size: 9px; }
+    .status-panel meter { height: 5px; }
+    #hullMeter::-webkit-meter-optimum-value { background: var(--amber); }
+    #hullMeter::-moz-meter-bar { background: var(--amber); }
+    .status-panel .telemetry {
+        position: absolute;
+        bottom: calc(100% + 5px);
+        left: 50%;
+        width: 154px;
+        margin: 0;
+        padding: 3px 8px;
+        border: 0;
+        background: rgba(7,12,11,.68);
+        transform: translateX(-50%);
+    }
+    .touch-controls { position: absolute; z-index: 3; display: block; left: 16px; bottom: max(48px, calc(38px + env(safe-area-inset-bottom))); }
     .touch-controls button { width: 54px; height: 54px; border: 1px solid rgba(238,244,230,.35); border-radius: 50%; background: rgba(8,14,12,.7); font-size: 22px; touch-action: none; }
     .touch-controls button:active { color: #101510; background: var(--acid); }
-    .touch-controls .fire-control { position: fixed; right: 18px; bottom: max(23px, env(safe-area-inset-bottom)); width: 66px; height: 66px; color: var(--amber); border-color: var(--amber); }
+    .touch-controls .flight-stick { position: relative; width: 112px; height: 112px; border-color: rgba(238,244,230,.24); background: rgba(8,14,12,.55); }
+    .flight-stick::before, .flight-stick::after { position: absolute; content: ""; background: rgba(238,244,230,.13); pointer-events: none; }
+    .flight-stick::before { top: 18px; bottom: 18px; left: 50%; width: 1px; }
+    .flight-stick::after { top: 50%; right: 18px; left: 18px; height: 1px; }
+    .flight-stick-knob { position: absolute; z-index: 1; top: 50%; left: 50%; width: 46px; height: 46px; border: 1px solid var(--acid); border-radius: 50%; background: rgba(24,34,28,.92); transform: translate(-50%, -50%); pointer-events: none; }
+    .flight-stick.active .flight-stick-knob { background: rgba(199,243,106,.28); }
+    .touch-controls .fire-control { position: fixed; right: 18px; bottom: max(55px, calc(45px + env(safe-area-inset-bottom))); width: 66px; height: 66px; color: var(--amber); border-color: var(--amber); }
+}
+
+@media (orientation: landscape) and (max-height: 530px) {
+    .update-hint { top: max(70px, calc(54px + env(safe-area-inset-top))); }
+    html.ios-browser:not(.standalone) .install-hint:not([hidden]) {
+        position: absolute;
+        z-index: 6;
+        top: max(70px, calc(54px + env(safe-area-inset-top)));
+        left: 50%;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        width: min(520px, calc(100vw - 32px));
+        padding: 10px 10px 10px 14px;
+        border: 1px solid var(--acid);
+        background: rgba(7,12,11,.94);
+        box-shadow: 0 8px 30px rgba(0,0,0,.4);
+        transform: translateX(-50%);
+    }
+    .install-hint div { min-width: 0; }
+    .install-hint strong { display: block; color: var(--acid); font: 600 10px Monaco, monospace; letter-spacing: 1px; }
+    .install-hint span { display: block; margin-top: 3px; color: var(--ink); font-size: 12px; line-height: 1.25; }
+    .install-hint button { flex: 0 0 34px; width: 34px; height: 34px; border: 1px solid var(--line); background: transparent; font-size: 20px; }
 }
 
 @media (max-height: 530px) {
@@ -197,6 +293,9 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
     .leaderboard-list { min-height: 120px; margin: 8px 0; }
     .leaderboard-list li { padding-block: 5px; }
     .key-guide { display: none; }
+}
+
+@media (max-height: 530px) and (min-width: 721px) and (pointer: fine) {
     .status-panel { display: none; }
 }
 

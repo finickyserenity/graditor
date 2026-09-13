@@ -1,0 +1,19 @@
+{
+    "name": "Graditor",
+    "short_name": "Graditor",
+    "description": "Planetary defense flight game",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#090d0c",
+    "theme_color": "#090d0c",
+    "icons": [
+        {
+            "src": "graditor-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
