@@ -334,6 +334,14 @@
         ship.cooldown = 11;
     }
 
+    function destroyTurret(turret) {
+        turret.health = 0;
+        score += 750 * level;
+        emit(turret.x, turret.y, '#c7f36a', 28, 3);
+        playNoise(.55, .3, 1400);
+        playTone(90, 28, .58, .28, 'sawtooth');
+    }
+
     /**
      * Reports whether a projectile has entered solid terrain or a landing pad.
      * @param {{x: number, y: number}} projectile The projectile to test.
@@ -427,6 +435,12 @@
         world.turrets.forEach(turret => {
             if (turret.health <= 0) return;
             const distance = Math.hypot(ship.x - turret.x, ship.y - turret.y);
+            if (distance < ship.radius + 18) {
+                const impactDamage = Math.max(18, Math.hypot(ship.vx, ship.vy) * 10) * config.damageMultiplier;
+                destroyTurret(turret);
+                damage(impactDamage);
+                return;
+            }
             turret.angle = Math.atan2(ship.y - turret.y, ship.x - turret.x);
             turret.cooldown -= dt * config.enemyRate;
             if (distance < 720 && turret.cooldown <= 0) {
@@ -436,15 +450,15 @@
                 turret.cooldown = Math.max(55, 130 - level * 9) + Math.random() * 60;
             }
             world.bullets.forEach(bullet => {
+                if (turret.health <= 0) return;
                 if (bullet.life > 0 && Math.hypot(bullet.x - turret.x, bullet.y - turret.y) < 23) {
                     bullet.life = 0;
                     turret.health--;
                     playTone(180, 70, .13, .12, 'triangle');
-                    emit(turret.x, turret.y, turret.health > 0 ? '#ffb547' : '#c7f36a', turret.health > 0 ? 8 : 28, 3);
                     if (turret.health <= 0) {
-                        score += 750 * level;
-                        playNoise(.55, .3, 1400);
-                        playTone(90, 28, .58, .28, 'sawtooth');
+                        destroyTurret(turret);
+                    } else {
+                        emit(turret.x, turret.y, '#ffb547', 8, 3);
                     }
                 }
             });
