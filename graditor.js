@@ -11,7 +11,9 @@
         altitude: document.getElementById('altitudeValue'), message: document.getElementById('messagePanel'),
         start: document.getElementById('startButton'), startLabel: document.getElementById('startButtonLabel'),
         settings: document.getElementById('settingsDialog'), leaderboard: document.getElementById('leaderboardDialog'),
-        leaderboardList: document.getElementById('leaderboardList'), callsign: document.getElementById('callsignInput')
+        leaderboardList: document.getElementById('leaderboardList'), callsign: document.getElementById('callsignInput'),
+        radiationOverlay: document.getElementById('radiationOverlay'), radiationWarning: document.getElementById('radiationWarning'),
+        radiationStatus: document.getElementById('radiationStatus')
     };
 
     const controls = { left: false, right: false, thrust: false, fire: false };
@@ -35,6 +37,7 @@
     let state = 'briefing';
     let lastTime = 0;
     let shake = 0;
+    let radiationExposure = 0;
     let runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const leaderboardKey = 'graditorLeaderboard';
     const callsignKey = 'graditorCallsign';
@@ -197,9 +200,18 @@
     }
 
     function terrainY(points, x) {
+        if (x <= 0) return points[0];
+        if (x >= (points.length - 1) * 80) return points[points.length - 1];
         const index = Math.max(0, Math.min(points.length - 2, Math.floor(x / 80)));
         const fraction = (x - index * 80) / 80;
         return points[index] + (points[index + 1] - points[index]) * fraction;
+    }
+
+    function ceilingY(x) {
+        if (x < 0 || x > world.width) return null;
+        const index = Math.max(0, Math.min(world.ceiling.length - 2, Math.floor(x / 80)));
+        if (world.ceiling[index] <= -250 && world.ceiling[index + 1] <= -250) return null;
+        return terrainY(world.ceiling, x);
     }
 
     /** Shapes the terrain into a series of increasingly narrow flight passages. */
@@ -284,6 +296,9 @@
         ship.invulnerable = 0;
         ship.damageEvents = 0;
         ship.tipped = false;
+        radiationExposure = 0;
+        ui.radiationOverlay.style.opacity = 0;
+        ui.radiationWarning.hidden = true;
         camera.x = 0;
         camera.y = Math.max(0, ship.y - viewport.height * .65);
     }
@@ -342,6 +357,35 @@
         if (ship.hull <= 0) {
             saveLeaderboardEntry();
             endRun('SHIP LOST', 'Hull integrity lost.', 'The ridge claimed another pilot. Your mission can be restarted from this sector.', 'RETRY SECTOR');
+        }
+    }
+
+    function updateRadiation(dt) {
+        const boundaryDistance = Math.max(0, -ship.x, ship.x - world.width, -ship.y, ship.y - world.height);
+        if (boundaryDistance <= 0) {
+            radiationExposure = Math.max(0, radiationExposure - dt / 30);
+        } else {
+            const distanceFactor = Math.min(2.5, boundaryDistance / 500);
+            radiationExposure += dt / 60 * (1 + distanceFactor);
+        }
+
+        const active = radiationExposure > .05;
+        const intensity = active ? Math.min(.78, .06 + boundaryDistance / 1000 * .42 + radiationExposure / 12) : 0;
+        ui.radiationOverlay.style.opacity = intensity;
+        ui.radiationWarning.hidden = !active;
+        if (!active) return;
+
+        const graceRemaining = Math.max(0, 3 - radiationExposure);
+        ui.radiationStatus.textContent = graceRemaining > 0
+            ? `HULL DAMAGE IN ${Math.ceil(graceRemaining)}`
+            : 'HULL INTEGRITY FAILING';
+        if (graceRemaining > 0) return;
+
+        ship.hull = Math.max(0, ship.hull - (1.5 + boundaryDistance / 180) * dt / 60);
+        shake = Math.max(shake, intensity * 2.5);
+        if (ship.hull <= 0) {
+            saveLeaderboardEntry();
+            endRun('SHIP LOST', 'Radiation breach.', 'The ship remained outside the protected flight zone for too long.', 'RETRY SECTOR');
         }
     }
 
@@ -412,9 +456,10 @@
 
         const pad = world.pads.find(item => ship.x >= item.x + ship.radius && ship.x <= item.x + item.width - ship.radius);
         const floor = pad ? pad.y : terrainY(world.floor, ship.x);
-        const ceiling = terrainY(world.ceiling, ship.x);
-        const hitFloor = ship.y + ship.radius >= floor;
-        const hitCeiling = ship.y - ship.radius <= ceiling;
+        const ceiling = ceilingY(ship.x);
+        const withinHorizontalBounds = ship.x >= 0 && ship.x <= world.width;
+        const hitFloor = withinHorizontalBounds && ship.y + ship.radius >= floor;
+        const hitCeiling = ceiling !== null && ship.y - ship.radius <= ceiling;
         if (pad && ship.y + ship.radius < floor - 30) ship.tipped = false;
         if (hitFloor) {
             if (pad) {
@@ -444,7 +489,7 @@
             }
         }
         if (hitCeiling) { ship.y = ceiling + ship.radius; ship.vy = Math.abs(ship.vy) * .5; damage(15); }
-        if (ship.x < 0 || ship.x > world.width || ship.y > world.height + 200) damage(100);
+        updateRadiation(dt);
 
         const screenX = ship.x - camera.x;
         const screenY = ship.y - camera.y;
@@ -456,8 +501,9 @@
         if (screenX > rightEdge) camera.x += (screenX - rightEdge) * .08 * dt;
         if (screenY < topEdge) camera.y += (screenY - topEdge) * .08 * dt;
         if (screenY > bottomEdge) camera.y += (screenY - bottomEdge) * .08 * dt;
-        camera.x = Math.max(0, Math.min(world.width - viewport.width, camera.x));
-        camera.y = Math.max(0, Math.min(world.height - viewport.height, camera.y));
+        const visibilityMargin = ship.radius + 12;
+        camera.x = Math.max(ship.x + visibilityMargin - viewport.width, Math.min(ship.x - visibilityMargin, camera.x));
+        camera.y = Math.max(ship.y + visibilityMargin - viewport.height, Math.min(ship.y - visibilityMargin, camera.y));
         updateHud();
     }
 
@@ -471,6 +517,9 @@
 
     function endRun(eyebrow, title, copy, button) {
         state = 'dead';
+        radiationExposure = 0;
+        ui.radiationOverlay.style.opacity = 0;
+        ui.radiationWarning.hidden = true;
         showMessage(eyebrow, title, copy, button);
     }
 
@@ -567,17 +616,51 @@
         });
     }
 
-    function drawTerrain(points, fill, stroke, invert = false) {
+    function drawTerrain(points, fill, stroke) {
+        const visibleStart = Math.max(0, camera.x);
+        const visibleEnd = Math.min(world.width, camera.x + viewport.width);
+        if (visibleStart >= visibleEnd) return;
+        const closureY = viewport.height + 400;
+        const firstVisibleIndex = Math.max(0, Math.floor(visibleStart / 80) + 1);
+        const lastVisibleIndex = Math.min(points.length - 1, Math.ceil(visibleEnd / 80) - 1);
         context.beginPath();
-        context.moveTo(-camera.x, invert ? -camera.y - 400 : world.height - camera.y);
-        points.forEach((point, index) => context.lineTo(index * 80 - camera.x, point - camera.y));
-        context.lineTo(world.width - camera.x, invert ? -camera.y - 400 : world.height - camera.y);
+        context.moveTo(visibleStart - camera.x, closureY);
+        context.lineTo(visibleStart - camera.x, terrainY(points, visibleStart) - camera.y);
+        for (let index = firstVisibleIndex; index <= lastVisibleIndex; index++) {
+            context.lineTo(index * 80 - camera.x, points[index] - camera.y);
+        }
+        context.lineTo(visibleEnd - camera.x, terrainY(points, visibleEnd) - camera.y);
+        context.lineTo(visibleEnd - camera.x, closureY);
         context.closePath();
         context.fillStyle = fill;
         context.fill();
         context.strokeStyle = stroke;
         context.lineWidth = 2;
         context.stroke();
+    }
+
+    function drawCeilingTerrain() {
+        let segmentStart = null;
+        for (let index = 0; index < world.ceiling.length; index++) {
+            const solid = world.ceiling[index] > -250;
+            if (solid && segmentStart === null) segmentStart = index;
+            if ((!solid || index === world.ceiling.length - 1) && segmentStart !== null) {
+                const segmentEnd = solid ? index : index - 1;
+                context.beginPath();
+                context.moveTo(segmentStart * 80 - camera.x, -camera.y - 400);
+                for (let point = segmentStart; point <= segmentEnd; point++) {
+                    context.lineTo(point * 80 - camera.x, world.ceiling[point] - camera.y);
+                }
+                context.lineTo(segmentEnd * 80 - camera.x, -camera.y - 400);
+                context.closePath();
+                context.fillStyle = '#202722';
+                context.fill();
+                context.strokeStyle = '#657667';
+                context.lineWidth = 2;
+                context.stroke();
+                segmentStart = null;
+            }
+        }
     }
 
     function render() {
@@ -599,7 +682,7 @@
         context.globalAlpha = 1;
 
         drawTerrain(world.floor, '#252d27', '#7f927e');
-        drawTerrain(world.ceiling, '#202722', '#657667', true);
+        drawCeilingTerrain();
         context.strokeStyle = 'rgba(199,243,106,.055)'; context.lineWidth = 1;
         for (let x = -(camera.x % 80); x < viewport.width; x += 80) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x, viewport.height); context.stroke(); }
         for (let y = -(camera.y % 80); y < viewport.height; y += 80) { context.beginPath(); context.moveTo(0, y); context.lineTo(viewport.width, y); context.stroke(); }

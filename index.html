@@ -16,6 +16,12 @@
 <body>
     <main class="game-shell">
         <canvas id="game" aria-label="Graditor game field"></canvas>
+        <div id="radiationOverlay" class="radiation-overlay" aria-hidden="true"></div>
+
+        <aside id="radiationWarning" class="radiation-warning" aria-live="assertive" hidden>
+            <strong>RADIATION ZONE</strong>
+            <span id="radiationStatus">HULL DAMAGE IMMINENT</span>
+        </aside>
 
         <header class="topbar">
             <div class="brand" aria-label="Graditor">

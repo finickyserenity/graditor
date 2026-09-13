@@ -45,6 +45,33 @@ body {
 
 #game { display: block; width: 100%; height: 100%; touch-action: none; background: #090d0c; }
 
+.radiation-overlay {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle at center, transparent 35%, rgba(255,32,18,.3) 100%), rgba(255,25,14,.12);
+    box-shadow: inset 0 0 90px rgba(255,28,18,.65);
+}
+
+.radiation-warning {
+    position: absolute;
+    z-index: 3;
+    top: 92px;
+    left: 50%;
+    padding: 7px 12px;
+    border: 1px solid var(--danger);
+    color: #fff;
+    background: rgba(55,5,2,.72);
+    text-align: center;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+.radiation-warning[hidden] { display: none; }
+.radiation-warning strong { display: block; color: var(--danger); font: 700 11px Monaco, monospace; letter-spacing: 1px; }
+.radiation-warning span { display: block; margin-top: 2px; font: 600 9px Monaco, monospace; letter-spacing: 1px; }
+
 .game-shell::after {
     position: absolute;
     inset: 0;
@@ -191,6 +218,7 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
 .update-hint button { min-height: 34px; padding: 0 12px; border: 0; color: #11160f; background: var(--acid); font: 700 10px Monaco, monospace; }
 
 @media (max-width: 720px), (pointer: coarse) {
+    .radiation-warning { top: max(70px, calc(54px + env(safe-area-inset-top))); }
     .topbar { height: 64px; padding-inline: 12px; gap: 12px; }
     .brand { min-width: 0; }
     .brand small { display: none; }
