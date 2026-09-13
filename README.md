@@ -12,6 +12,8 @@
 
 A momentum-driven lunar combat game. Pilot a fragile lander through hostile terrain, destroy every defense turret, and touch down on the extraction pad before fuel or hull integrity runs out.
 
+**Play live:** [finickyserenity.github.io/graditor](https://finickyserenity.github.io/graditor/)
+
 ## Mission
 
 1. Launch from the starting pad.
