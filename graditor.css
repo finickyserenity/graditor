@@ -83,7 +83,7 @@ body {
 
 .topbar {
     position: absolute;
-    z-index: 2;
+    z-index: 5;
     top: 0;
     left: 0;
     right: 0;
@@ -97,7 +97,7 @@ body {
 }
 
 .brand { display: flex; align-items: center; gap: 11px; min-width: 240px; }
-.brand-mark { display: grid; place-items: center; width: 37px; height: 37px; color: #11160f; background: var(--acid); font: 700 26px/1 Monaco, monospace; clip-path: polygon(0 0, 100% 0, 100% 72%, 73% 100%, 0 100%); }
+.brand-mark { flex: 0 0 37px; width: 37px; height: 37px; background: url("graditor-icon.svg") center / contain no-repeat; }
 .brand strong { display: block; font: 600 20px/1 Monaco, monospace; }
 .brand small, .topbar span, dialog small { display: block; color: var(--muted); font-size: 10px; letter-spacing: 1.5px; }
 
@@ -223,7 +223,7 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
     .brand { min-width: 0; }
     .brand small { display: none; }
     .brand strong { font-size: 15px; }
-    .brand-mark { width: 32px; height: 32px; font-size: 22px; }
+    .brand-mark { flex-basis: 32px; width: 32px; height: 32px; }
     .readouts { gap: 13px; }
     .readouts div:nth-child(2) { display: none; }
     .readouts strong { font-size: 14px; }
@@ -282,6 +282,11 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
 }
 
 @media (orientation: landscape) and (max-height: 530px) {
+    .message-panel {
+        right: max(22px, calc(env(safe-area-inset-right) + 16px));
+        left: max(22px, calc(env(safe-area-inset-left) + 16px));
+        width: auto;
+    }
     .update-hint { top: max(70px, calc(54px + env(safe-area-inset-top))); }
     html.ios-browser:not(.standalone) .install-hint:not([hidden]) {
         position: absolute;

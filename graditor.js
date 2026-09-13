@@ -355,7 +355,6 @@
         playNoise(.35, .22, 900);
         emit(ship.x, ship.y, '#ff5f4d', 16, 3);
         if (ship.hull <= 0) {
-            saveLeaderboardEntry();
             endRun('SHIP LOST', 'Hull integrity lost.', 'The ridge claimed another pilot. Your mission can be restarted from this sector.', 'RETRY SECTOR');
         }
     }
@@ -384,7 +383,6 @@
         ship.hull = Math.max(0, ship.hull - (1.5 + boundaryDistance / 180) * dt / 60);
         shake = Math.max(shake, intensity * 2.5);
         if (ship.hull <= 0) {
-            saveLeaderboardEntry();
             endRun('SHIP LOST', 'Radiation breach.', 'The ship remained outside the protected flight zone for too long.', 'RETRY SECTOR');
         }
     }
@@ -521,6 +519,10 @@
         ui.radiationOverlay.style.opacity = 0;
         ui.radiationWarning.hidden = true;
         showMessage(eyebrow, title, copy, button);
+        saveLeaderboardEntry();
+        if (!ui.leaderboard.open) ui.leaderboard.showModal();
+        ui.callsign.focus();
+        ui.callsign.select();
     }
 
     function showMessage(eyebrow, title, copy, button) {
@@ -744,8 +746,9 @@
     }
 
     const keyMap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'thrust', KeyW: 'thrust', Space: 'fire' };
-    addEventListener('keydown', event => { if (keyMap[event.code]) { controls[keyMap[event.code]] = true; event.preventDefault(); } });
-    addEventListener('keyup', event => { if (keyMap[event.code]) controls[keyMap[event.code]] = false; });
+    const isEditableTarget = target => target instanceof HTMLElement && (target.matches('input, textarea, select') || target.isContentEditable);
+    addEventListener('keydown', event => { if (!isEditableTarget(event.target) && keyMap[event.code]) { controls[keyMap[event.code]] = true; event.preventDefault(); } });
+    addEventListener('keyup', event => { if (!isEditableTarget(event.target) && keyMap[event.code]) controls[keyMap[event.code]] = false; });
     const touchControls = document.querySelector('.touch-controls');
     ['touchstart', 'touchmove', 'touchend'].forEach(type => {
         touchControls.addEventListener(type, event => event.preventDefault(), { passive: false });
@@ -832,11 +835,24 @@
         state = 'playing';
         ui.message.classList.remove('visible');
     });
-    document.getElementById('settingsButton').addEventListener('click', () => ui.settings.showModal());
+    let stateBeforeSettings = null;
+    document.getElementById('settingsButton').addEventListener('click', () => {
+        stateBeforeSettings = state;
+        if (state === 'playing') {
+            Object.keys(controls).forEach(control => { controls[control] = false; });
+            releaseFlightStick({});
+            state = 'settings';
+        }
+        ui.settings.showModal();
+    });
     document.getElementById('audioButton').addEventListener('click', () => setAudioEnabled(!audio.enabled));
     document.getElementById('leaderboardButton').addEventListener('click', () => { renderLeaderboard(); ui.leaderboard.showModal(); });
-    ui.callsign.value = localStorage.getItem(callsignKey) || 'PILOT';
-    ui.callsign.addEventListener('input', () => localStorage.setItem(callsignKey, ui.callsign.value.toUpperCase().slice(0, 12)));
+    ui.callsign.value = (localStorage.getItem(callsignKey) || 'PILOT').slice(0, 12);
+    ui.callsign.addEventListener('input', () => {
+        ui.callsign.value = ui.callsign.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+        localStorage.setItem(callsignKey, ui.callsign.value);
+        if (state === 'dead') saveLeaderboardEntry();
+    });
     document.getElementById('clearLeaderboardButton').addEventListener('click', () => { localStorage.removeItem(leaderboardKey); renderLeaderboard(); });
     const installHint = document.getElementById('installHint');
     if (sessionStorage.getItem('graditorInstallHintDismissed') === 'true') installHint.hidden = true;
@@ -853,7 +869,11 @@
         input.addEventListener('input', () => { config[key] = Number(input.value); output.value = format(input.value); updateDifficultySummary(); });
     });
     ui.settings.addEventListener('close', () => {
-        if (ui.settings.returnValue !== 'default') return;
+        if (ui.settings.returnValue !== 'default') {
+            if (state === 'settings') state = stateBeforeSettings || 'playing';
+            stateBeforeSettings = null;
+            return;
+        }
         const requestedLevel = Number.parseInt(document.getElementById('levelSetting').value, 10) || 1;
         level = Math.max(1, Math.min(30, requestedLevel));
         document.getElementById('levelSetting').value = level;
@@ -861,6 +881,7 @@
         runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         buildLevel();
         state = 'playing';
+        stateBeforeSettings = null;
         ui.message.classList.remove('visible');
     });
     updateAudioButton();
