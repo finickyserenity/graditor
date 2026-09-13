@@ -11,7 +11,7 @@
 
 * { box-sizing: border-box; }
 
-html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #090d0c; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; touch-action: none; background: #090d0c; }
 
 body {
     color: var(--ink);
@@ -26,7 +26,7 @@ body {
     -webkit-touch-callout: none;
 }
 
-.game-shell { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.game-shell { position: relative; width: 100%; height: 100%; overflow: hidden; touch-action: none; }
 
 .game-shell::before {
     position: absolute;
@@ -216,8 +216,8 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
         padding: 9px max(12px, env(safe-area-inset-right)) calc(9px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
         border: 0;
         border-top: 1px solid var(--line);
-        background: rgba(7,12,11,.88);
-        backdrop-filter: blur(6px);
+        background: transparent;
+        backdrop-filter: none;
     }
     .status-panel .meter-row { grid-template-columns: 28px minmax(0, 1fr) 24px; gap: 5px; margin: 0; }
     .status-panel .meter-row:first-child { direction: rtl; }
@@ -235,19 +235,20 @@ dialog .primary-button { width: 100%; margin-top: 10px; }
         margin: 0;
         padding: 3px 8px;
         border: 0;
-        background: rgba(7,12,11,.68);
+        background: transparent;
+        text-shadow: 0 1px 3px #000;
         transform: translateX(-50%);
     }
-    .touch-controls { position: absolute; z-index: 3; display: block; left: 16px; bottom: max(48px, calc(38px + env(safe-area-inset-bottom))); }
+    .touch-controls { position: absolute; z-index: 3; display: block; left: 16px; bottom: max(48px, calc(38px + env(safe-area-inset-bottom))); touch-action: none; }
     .touch-controls button { width: 54px; height: 54px; border: 1px solid rgba(238,244,230,.35); border-radius: 50%; background: rgba(8,14,12,.7); font-size: 22px; touch-action: none; }
     .touch-controls button:active { color: #101510; background: var(--acid); }
     .touch-controls .flight-stick { position: relative; width: 112px; height: 112px; border-color: rgba(238,244,230,.24); background: rgba(8,14,12,.55); }
-    .flight-stick::before, .flight-stick::after { position: absolute; content: ""; background: rgba(238,244,230,.13); pointer-events: none; }
-    .flight-stick::before { top: 18px; bottom: 18px; left: 50%; width: 1px; }
+    .flight-stick::after { position: absolute; content: ""; background: rgba(238,244,230,.13); pointer-events: none; }
     .flight-stick::after { top: 50%; right: 18px; left: 18px; height: 1px; }
     .flight-stick-knob { position: absolute; z-index: 1; top: 50%; left: 50%; width: 46px; height: 46px; border: 1px solid var(--acid); border-radius: 50%; background: rgba(24,34,28,.92); transform: translate(-50%, -50%); pointer-events: none; }
     .flight-stick.active .flight-stick-knob { background: rgba(199,243,106,.28); }
-    .touch-controls .fire-control { position: fixed; right: 18px; bottom: max(55px, calc(45px + env(safe-area-inset-bottom))); width: 66px; height: 66px; color: var(--amber); border-color: var(--amber); }
+    .touch-controls .thrust-control { position: fixed; right: 16px; bottom: max(48px, calc(38px + env(safe-area-inset-bottom))); width: 78px; height: 78px; color: var(--acid); border-color: var(--acid); }
+    .touch-controls .fire-control { position: fixed; right: 25px; bottom: max(134px, calc(124px + env(safe-area-inset-bottom))); width: 60px; height: 60px; color: var(--amber); border-color: var(--amber); }
 }
 
 @media (orientation: landscape) and (max-height: 530px) {

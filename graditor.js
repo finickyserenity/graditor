@@ -665,25 +665,29 @@
     addEventListener('keyup', event => { if (keyMap[event.code]) controls[keyMap[event.code]] = false; });
     document.querySelectorAll('[data-control]').forEach(button => {
         const control = button.dataset.control;
-        const set = value => event => { event.preventDefault(); controls[control] = value; };
-        button.addEventListener('pointerdown', set(true)); button.addEventListener('pointerup', set(false)); button.addEventListener('pointercancel', set(false)); button.addEventListener('pointerleave', set(false));
+        const release = event => {
+            if (button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+            controls[control] = false;
+        };
+        button.addEventListener('pointerdown', event => {
+            event.preventDefault();
+            controls[control] = true;
+            try { button.setPointerCapture(event.pointerId); } catch (error) { /* Pointer capture is optional input hardening. */ }
+        });
+        button.addEventListener('pointerup', release);
+        button.addEventListener('pointercancel', release);
     });
     const flightStick = document.getElementById('flightStick');
     const flightStickKnob = flightStick.querySelector('.flight-stick-knob');
     const updateFlightStick = event => {
         const bounds = flightStick.getBoundingClientRect();
         const offsetX = event.clientX - bounds.left - bounds.width / 2;
-        const offsetY = event.clientY - bounds.top - bounds.height / 2;
-        const distance = Math.hypot(offsetX, offsetY);
         const radius = bounds.width * .32;
-        const scale = distance > radius ? radius / distance : 1;
-        const x = offsetX * scale;
-        const y = offsetY * scale;
+        const x = Math.max(-radius, Math.min(radius, offsetX));
         const deadZone = bounds.width * .09;
-        flightStickKnob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+        flightStickKnob.style.transform = `translate(calc(-50% + ${x}px), -50%)`;
         controls.left = x < -deadZone ? Math.min(1, (-x - deadZone) / (radius - deadZone)) : 0;
         controls.right = x > deadZone ? Math.min(1, (x - deadZone) / (radius - deadZone)) : 0;
-        controls.thrust = y < -deadZone ? Math.min(1, (-y - deadZone) / (radius - deadZone)) : 0;
     };
     const releaseFlightStick = event => {
         if (event.pointerId !== undefined && flightStick.hasPointerCapture(event.pointerId)) flightStick.releasePointerCapture(event.pointerId);
@@ -691,13 +695,12 @@
         flightStickKnob.style.transform = '';
         controls.left = false;
         controls.right = false;
-        controls.thrust = false;
     };
     flightStick.addEventListener('pointerdown', event => {
         event.preventDefault();
-        flightStick.setPointerCapture(event.pointerId);
         flightStick.classList.add('active');
         updateFlightStick(event);
+        try { flightStick.setPointerCapture(event.pointerId); } catch (error) { /* Pointer capture is optional input hardening. */ }
     });
     flightStick.addEventListener('pointermove', event => {
         if (flightStick.hasPointerCapture(event.pointerId)) updateFlightStick(event);
@@ -705,8 +708,35 @@
     flightStick.addEventListener('pointerup', releaseFlightStick);
     flightStick.addEventListener('pointercancel', releaseFlightStick);
 
+    let previousCenterTap = null;
+    canvas.addEventListener('pointerup', event => {
+        if (event.pointerType !== 'touch' || state !== 'playing') return;
+        const inCenter = event.clientX > innerWidth * .25 && event.clientX < innerWidth * .75
+            && event.clientY > innerHeight * .22 && event.clientY < innerHeight * .72;
+        if (!inCenter) {
+            previousCenterTap = null;
+            return;
+        }
+        const tap = { time: performance.now(), x: event.clientX, y: event.clientY };
+        if (previousCenterTap && tap.time - previousCenterTap.time < 350
+            && Math.hypot(tap.x - previousCenterTap.x, tap.y - previousCenterTap.y) < 60) {
+            previousCenterTap = null;
+            Object.keys(controls).forEach(control => { controls[control] = false; });
+            releaseFlightStick({});
+            state = 'paused';
+            showMessage('FLIGHT PAUSED', 'Systems on hold.', 'Your current position and mission progress are preserved.', 'RESUME FLIGHT');
+            return;
+        }
+        previousCenterTap = tap;
+    });
+
     ui.start.addEventListener('click', () => {
         ensureAudio();
+        if (state === 'paused') {
+            state = 'playing';
+            ui.message.classList.remove('visible');
+            return;
+        }
         if (state === 'complete') level++;
         buildLevel();
         state = 'playing';

@@ -1,4 +1,4 @@
-const cacheName = 'graditor-v4';
+const cacheName = 'graditor-v8';
 const appShell = ['./', './index.html', './graditor.css', './graditor.js', './manifest.webmanifest', './graditor-icon.svg', './graditor-icon-180.png'];
 
 self.addEventListener('install', event => {
